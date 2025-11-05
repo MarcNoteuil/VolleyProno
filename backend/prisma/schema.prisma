@@ -1,0 +1,147 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  pseudo        String   @unique
+  role          UserRole @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships   GroupMember[]
+  predictions   Prediction[]
+  createdGroups Group[]    @relation("UserCreatedGroups")
+  ledGroups     Group[]    @relation("GroupLeader")
+  riskyCooldowns RiskyPredictionCooldown[]
+
+  @@index([email])
+  @@index([pseudo])
+}
+
+model Group {
+  id                String        @id @default(cuid())
+  name              String
+  inviteCode        String        @unique
+  ffvbSourceUrl     String?       // ex: URL poule/compétition
+  createdByUserId   String
+  leaderId          String        // ID du leader actuel du groupe
+  deletedAt         DateTime?     // Soft delete
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  createdBy         User          @relation("UserCreatedGroups", fields: [createdByUserId], references: [id])
+  leader            User          @relation("GroupLeader", fields: [leaderId], references: [id])
+  members           GroupMember[]
+  matches           Match[]
+  riskyCooldowns    RiskyPredictionCooldown[]
+
+  @@index([inviteCode])
+  @@index([deletedAt])
+  @@index([leaderId])
+}
+
+model GroupMember {
+  userId   String
+  groupId  String
+  role     GroupRole @default(MEMBER)
+  joinedAt DateTime  @default(now())
+
+  user     User   @relation(fields: [userId], references: [id])
+  group    Group  @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+  @@index([groupId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Match {
+  id            String    @id @default(cuid())
+  groupId       String
+  ffvbMatchId   String?   // identifiant externe si dispo
+  homeTeam      String
+  awayTeam      String
+  homeTeamLogo  String?   // URL du logo équipe domicile
+  awayTeamLogo  String?   // URL du logo équipe extérieur
+  startAt       DateTime
+  status        MatchStatus @default(SCHEDULED)
+  // Scores finaux (meilleur des 5 sets)
+  setsHome      Int?      // 0..3
+  setsAway      Int?      // 0..3
+  // Scores détaillés par set (ex: [{home: 25, away: 14}, {home: 25, away: 17}])
+  setScores     Json?     // JSON array of {home: number, away: number}
+  isLocked      Boolean   @default(false)
+  lockedAt      DateTime?
+  scrapedAt     DateTime?
+
+  group         Group     @relation(fields: [groupId], references: [id])
+  predictions   Prediction[]
+
+  @@index([groupId])
+  @@index([startAt])
+  @@index([status])
+  @@unique([groupId, ffvbMatchId])
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  FINISHED
+  CANCELED
+}
+
+model Prediction {
+  id             String    @id @default(cuid())
+  userId         String
+  matchId        String
+  // Pronostic score sets (ex: 3-1)
+  predictedHome  Int
+  predictedAway  Int
+  // Scores détaillés par set (ex: [{home: 25, away: 23}, {home: 25, away: 20}])
+  predictedSetScores Json? // JSON array of {home: number, away: number}
+  isRisky        Boolean   @default(false) // Mode risqué : double les points si correct, -2 pts si incorrect
+  pointsAwarded  Int?      // calculé après résultat
+  deletedAt      DateTime? // Soft delete pour les pronostics terminés (conservés pour le classement)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match          Match     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+  @@index([matchId])
+  @@index([deletedAt])
+  @@index([userId, pointsAwarded]) // Index pour le classement global
+}
+
+model RiskyPredictionCooldown {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id])
+  group     Group    @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+  @@index([userId, groupId])
+}

@@ -1,5 +1,93 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-/* Base app styles can be extended here if needed */
+/* Import Google Fonts - Sportive et moderne */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+/* Variables CSS pour le thème */
+:root {
+  --color-primary: #1a1a1a;
+  --color-secondary: #2d2d2d;
+  --color-accent: #ff6b35;
+  --color-accent-2: #ffa500;
+  --color-success: #00d084;
+  --color-info: #00a8ff;
+  --color-warning: #ffc107;
+  --color-danger: #ff4757;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #b0b0b0;
+  --color-bg-dark: #0f0f0f;
+  --color-bg-card: #1e1e1e;
+}
+
+/* Styles de base */
+body {
+  background-color: #111827; /* bg-gray-900 */
+  color: #ffffff; /* text-white */
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Polices */
+.font-sport {
+  font-family: 'Bebas Neue', cursive;
+  letter-spacing: 0.05em;
+}
+
+.font-team {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.font-bold-sport {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(255, 107, 53, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 107, 53, 0.8);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Scrollbar personnalisée */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ff6b35;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ff8c5a;
+}
+
+/* Classes utilitaires */
+.bg-sport-dark {
+  background-color: var(--color-primary);
+}
+
+.bg-sport-card {
+  background-color: var(--color-bg-card);
+}
+
+.text-sport-accent {
+  color: var(--color-accent);
+}
+
+.border-sport-accent {
+  border-color: var(--color-accent);
+}
