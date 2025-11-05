@@ -104,24 +104,34 @@ export default function UpcomingMatchesPage() {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     
-    // Vérifier si c'est aujourd'hui
-    if (date.toDateString() === today.toDateString()) {
-      return `Aujourd'hui à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    // Obtenir le fuseau horaire de l'utilisateur
+    const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    
+    // Vérifier si c'est aujourd'hui (selon le fuseau horaire de l'utilisateur)
+    const todayInUserTZ = new Date().toLocaleDateString('fr-FR', { timeZone: userTimeZone });
+    const dateInUserTZ = date.toLocaleDateString('fr-FR', { timeZone: userTimeZone });
+    
+    if (dateInUserTZ === todayInUserTZ) {
+      return `Aujourd'hui à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: userTimeZone })}`;
     }
     
-    // Vérifier si c'est demain
-    if (date.toDateString() === tomorrow.toDateString()) {
-      return `Demain à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+    // Vérifier si c'est demain (selon le fuseau horaire de l'utilisateur)
+    tomorrow.setDate(tomorrow.getDate());
+    const tomorrowInUserTZ = tomorrow.toLocaleDateString('fr-FR', { timeZone: userTimeZone });
+    
+    if (dateInUserTZ === tomorrowInUserTZ) {
+      return `Demain à ${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: userTimeZone })}`;
     }
     
-    // Sinon, afficher la date complète
-    return date.toLocaleDateString('fr-FR', {
+    // Sinon, afficher la date complète selon le fuseau horaire de l'utilisateur
+    return date.toLocaleString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: userTimeZone,
     });
   };
 

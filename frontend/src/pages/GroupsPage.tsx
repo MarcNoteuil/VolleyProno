@@ -66,13 +66,22 @@ export default function GroupsPage() {
         name: newGroupName.trim(),
       };
       
-      // Si un code de poule est fourni, l'utiliser, sinon utiliser l'URL
+      // Si un code de poule/URL est fourni dans le premier champ
       if (newGroupPoolCode.trim()) {
-        payload.poolCode = newGroupPoolCode.trim().toLowerCase();
+        const poolCodeValue = newGroupPoolCode.trim();
+        // Vérifier si c'est une URL complète ou un code court
+        if (poolCodeValue.startsWith('http://') || poolCodeValue.startsWith('https://')) {
+          // URL complète détectée
+          payload.poolCode = poolCodeValue; // Envoyer tel quel, le backend détectera que c'est une URL
+        } else {
+          // Code court détecté
+          payload.poolCode = poolCodeValue.toLowerCase();
+        }
       } else if (newGroupUrl.trim()) {
+        // Utiliser le champ URL alternative
         payload.ffvbSourceUrl = newGroupUrl.trim();
       } else {
-        setError('Veuillez renseigner un code de poule ou une URL FFVB');
+        setError('Veuillez renseigner un code de poule (format court) ou une URL FFVB complète');
         setSubmitting(false);
         return;
       }
@@ -254,32 +263,43 @@ export default function GroupsPage() {
               </div>
               <div className="mb-4">
                 <label className="block text-xs font-bold-sport text-gray-300 mb-1.5">
-                  Code de la poule
+                  Code de la poule ou URL complète
                 </label>
                 <input
                   type="text"
                   value={newGroupPoolCode}
                   onChange={(e) => {
-                    setNewGroupPoolCode(e.target.value.toLowerCase().replace(/\s+/g, ''));
+                    // Ne pas forcer en minuscules si c'est une URL
+                    const value = e.target.value;
+                    if (value.startsWith('http://') || value.startsWith('https://')) {
+                      setNewGroupPoolCode(value);
+                    } else {
+                      setNewGroupPoolCode(value.toLowerCase().replace(/\s+/g, ''));
+                    }
                     setError(''); // Réinitialiser l'erreur quand l'utilisateur tape
                   }}
                   className={`w-full px-3 py-2 bg-gray-700 border rounded-lg focus:outline-none focus:ring-2 text-white placeholder-gray-400 text-sm ${
-                    error && error.includes('code de poule') 
+                    error && (error.includes('code de poule') || error.includes('URL')) 
                       ? 'border-red-500 focus:ring-red-500' 
                       : 'border-gray-600 focus:ring-orange-500'
                   }`}
-                  placeholder="Ex: 3mb, 2fc, msl"
+                  placeholder="Code court (ex: 3mb, 2fc) ou URL complète"
                 />
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Entrez le code de votre poule (ex: <strong>3mb</strong> pour Nationale 3 Masculin B, <strong>2fc</strong> pour Nationale 2 Féminin C, <strong>msl</strong> pour Marmara Spike League)
-                </p>
-                <p className="mt-1.5 text-xs text-gray-400 italic">
-                  Ou utilisez le champ ci-dessous pour entrer l'URL complète si vous préférez
-                </p>
+                <div className="mt-1.5 space-y-1">
+                  <p className="text-xs text-gray-500">
+                    <strong>Format court (Pro à Nationale 3)</strong> : Entrez le code de votre poule (ex: <strong>3mb</strong> pour Nationale 3 Masculin B, <strong>2fc</strong> pour Nationale 2 Féminin C, <strong>msl</strong> pour Marmara Spike League, <strong>com</strong> pour Coupe de France)
+                  </p>
+                  <p className="text-xs text-orange-400">
+                    <strong>Format URL complète (Régionales/Départementales)</strong> : Pour les poules régionales ou départementales, collez l'URL complète de la page calendrier (ex: <code className="bg-gray-800 px-1 rounded">https://www.ffvbbeach.org/ffvbapp/resu/vbspo_calendrier.php?saison=2025/2026&codent=LIIDF&poule=2FA</code>)
+                  </p>
+                  <p className="text-xs text-blue-400">
+                    <strong>Coupes de France</strong> : Vous pouvez aussi entrer l'URL de la page Coupe de France (ex: <code className="bg-gray-800 px-1 rounded">https://www.ffvbbeach.org/ffvbapp/resu/seniors/2025-2026/index_com.htm</code>) ou simplement le code <strong>com</strong>
+                  </p>
+                </div>
               </div>
               <div className="mb-4">
                 <label className="block text-xs font-bold-sport text-gray-300 mb-1.5">
-                  Ou URL de la poule FFVB (optionnel)
+                  Ou URL de la poule FFVB (alternative)
                 </label>
                 <input
                   type="url"
@@ -292,7 +312,7 @@ export default function GroupsPage() {
                   placeholder="https://www.ffvbbeach.org/..."
                 />
                 <p className="mt-1.5 text-xs text-gray-500">
-                  Si vous préférez, vous pouvez entrer l'URL complète de la page FFVB
+                  Alternative : vous pouvez aussi entrer l'URL complète ici si vous préférez
                 </p>
               </div>
               <div className="flex justify-end space-x-2">

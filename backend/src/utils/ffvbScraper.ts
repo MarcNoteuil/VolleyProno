@@ -24,15 +24,35 @@ export class FFVBScraper {
     try {
       console.log('🔍 Début du scraping FFVB:', groupUrl);
       
-      // NOUVELLE APPROCHE : Appeler directement l'endpoint PHP vbspo_calendrier.php
-      let matches = await this.scrapeCalendarEndpoint(groupUrl);
-      console.log(`📡 Endpoint PHP a trouvé ${matches.length} matchs`);
+      // Détecter si c'est une Coupe de France (index_com.htm)
+      const isCoupeFrance = groupUrl.includes('index_com.htm') || groupUrl.includes('index_com');
       
-      // Si pas de matchs trouvés, essayer l'approche classique en fallback
-      if (matches.length === 0) {
-        console.log('⚠️ Aucun match trouvé via l\'endpoint PHP, essai de la méthode classique...');
+      let matches: FFVBMatch[] = [];
+      
+      // Pour les Coupes de France, essayer d'abord la méthode classique (frames)
+      // puis l'endpoint PHP en fallback
+      if (isCoupeFrance) {
+        console.log('🏆 Coupe de France détectée, tentative avec méthode classique (frames) d\'abord...');
         matches = await this.scrapePage(groupUrl);
-        console.log(`📡 Scraping classique a trouvé ${matches.length} matchs`);
+        console.log(`📡 Scraping classique (frames) a trouvé ${matches.length} matchs`);
+        
+        // Si pas de matchs trouvés, essayer l'endpoint PHP
+        if (matches.length === 0) {
+          console.log('⚠️ Aucun match trouvé via les frames, essai avec l\'endpoint PHP...');
+          matches = await this.scrapeCalendarEndpoint(groupUrl);
+          console.log(`📡 Endpoint PHP a trouvé ${matches.length} matchs`);
+        }
+      } else {
+        // Pour les autres poules, essayer d'abord l'endpoint PHP
+        matches = await this.scrapeCalendarEndpoint(groupUrl);
+        console.log(`📡 Endpoint PHP a trouvé ${matches.length} matchs`);
+        
+        // Si pas de matchs trouvés, essayer l'approche classique en fallback
+        if (matches.length === 0) {
+          console.log('⚠️ Aucun match trouvé via l\'endpoint PHP, essai de la méthode classique...');
+          matches = await this.scrapePage(groupUrl);
+          console.log(`📡 Scraping classique a trouvé ${matches.length} matchs`);
+        }
       }
 
       console.log(`🎯 Total de ${matches.length} matchs extraits`);
@@ -52,6 +72,10 @@ export class FFVBScraper {
    */
   private async scrapeCalendarEndpoint(groupUrl: string): Promise<FFVBMatch[]> {
     try {
+      // Vérifier si l'URL est déjà un endpoint PHP direct
+      const urlObj = new URL(groupUrl);
+      const isDirectEndpoint = urlObj.pathname.includes('vbspo_calendrier.php');
+      
       // Extraire les paramètres de l'URL source
       let urlParams = this.extractUrlParameters(groupUrl);
       if (!urlParams) {
@@ -59,8 +83,12 @@ export class FFVBScraper {
         return [];
       }
 
-      // Si le codent n'est pas dans l'URL, essayer de le trouver dans la page HTML
-      if (!urlParams.codent) {
+      // Si le codent n'est pas dans l'URL et que ce n'est pas un endpoint direct, essayer de le trouver dans la page HTML
+      // Pour les endpoints directs, le codent devrait être dans l'URL
+      // Pour les Coupes de France (poule = COM), le codent peut ne pas être nécessaire
+      const isCoupeFrance = urlParams.poule?.toUpperCase() === 'COM';
+      
+      if (!urlParams.codent && !isDirectEndpoint && !isCoupeFrance) {
         console.log('🔍 Recherche du codent dans la page HTML...');
         urlParams.codent = await this.extractCodentFromPage(groupUrl);
         if (urlParams.codent) {
@@ -68,11 +96,15 @@ export class FFVBScraper {
         } else {
           console.log('⚠️ Codent non trouvé, on continue sans');
         }
+      } else if (isDirectEndpoint && !urlParams.codent) {
+        console.log('⚠️ Endpoint PHP direct mais codent manquant dans l\'URL');
+      } else if (isCoupeFrance) {
+        console.log('🏆 Coupe de France détectée (poule=COM), codent peut ne pas être nécessaire');
       }
 
       // Construire l'URL de l'endpoint PHP - essayer plusieurs variantes
       const endpointUrls = this.buildCalendarEndpointUrls(groupUrl, urlParams);
-      console.log(`🔗 ${endpointUrls.length} variantes d'URL d'endpoint PHP à tester`);
+      console.log(`🔗 ${endpointUrls.length} variante(s) d'URL d'endpoint PHP à tester`);
       
       let response: any = null;
       let successfulUrl = '';
@@ -155,6 +187,9 @@ export class FFVBScraper {
 
   /**
    * Extrait les paramètres nécessaires de l'URL source (saison, poule, codent, etc.)
+   * Supporte deux formats :
+   * 1. URL d'endpoint PHP direct : vbspo_calendrier.php?saison=2025/2026&codent=LIIDF&poule=2FA
+   * 2. URL de page : index_3ma.htm (format pro/nationale 3)
    */
   private extractUrlParameters(url: string): {
     saison?: string;
@@ -164,12 +199,30 @@ export class FFVBScraper {
   } | null {
     try {
       const urlObj = new URL(url);
+      const params: any = {};
+      
+      // CAS 1: URL d'endpoint PHP direct (régionales/départementales)
+      if (urlObj.pathname.includes('vbspo_calendrier.php')) {
+        // Extraire directement depuis les query params
+        params.saison = urlObj.searchParams.get('saison') || undefined;
+        params.poule = urlObj.searchParams.get('poule') || undefined;
+        params.codent = urlObj.searchParams.get('codent') || undefined;
+        
+        // Construire le chemin de base
+        const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
+        const pathParts = urlObj.pathname.split('/').filter(p => p);
+        const basePath = pathParts.slice(0, -1).join('/'); // Tout sauf le dernier élément (fichier PHP)
+        params.basePath = basePath ? `${baseUrl}/${basePath}` : baseUrl;
+        
+        console.log('📋 Paramètres extraits depuis endpoint PHP direct:', params);
+        return params;
+      }
+      
+      // CAS 2: URL de page (format pro/nationale 3)
       const pathParts = urlObj.pathname.split('/').filter(p => p);
       
       // Exemple: /ffvbapp/resu/seniors/2025-2026/index_3ma.htm
       // On cherche: saison (2025-2026), poule (3MA), chemin de base
-      
-      const params: any = {};
       
       // Extraire la saison (format: 2025-2026 ou 2025/2026)
       const seasonMatch = url.match(/(\d{4})[-/](\d{4})/);
@@ -177,10 +230,12 @@ export class FFVBScraper {
         params.saison = `${seasonMatch[1]}/${seasonMatch[2]}`;
       }
 
-      // Extraire la poule depuis le nom de fichier (ex: index_3ma.htm -> 3MA)
+      // Extraire la poule depuis le nom de fichier (ex: index_3ma.htm -> 3MA, index_com.htm -> COM)
       const pouleMatch = url.match(/index_(\w+)\.htm/i);
       if (pouleMatch) {
         params.poule = pouleMatch[1].toUpperCase();
+        // Pour les Coupes de France (index_com.htm), le code est "com"
+        // On peut utiliser ce code comme poule
       }
 
       // Construire le chemin de base (ex: https://www.ffvbbeach.org/ffvbapp/)
@@ -196,7 +251,7 @@ export class FFVBScraper {
         params.codent = codentMatch[1];
       }
 
-      console.log('📋 Paramètres extraits:', params);
+      console.log('📋 Paramètres extraits depuis page HTML:', params);
       return params;
     } catch (error) {
       console.error('❌ Erreur lors de l\'extraction des paramètres:', error);
@@ -289,6 +344,7 @@ export class FFVBScraper {
   /**
    * Construit plusieurs variantes d'URL pour l'endpoint vbspo_calendrier.php
    * L'endpoint peut être à différents endroits selon la structure du site
+   * Si l'URL est déjà un endpoint PHP direct, on l'utilise directement
    */
   private buildCalendarEndpointUrls(originalUrl: string, params: {
     saison?: string;
@@ -297,6 +353,36 @@ export class FFVBScraper {
     basePath?: string;
   }): string[] {
     const urlObj = new URL(originalUrl);
+    
+    // CAS 1: Si l'URL est déjà un endpoint PHP direct, l'utiliser directement
+    if (urlObj.pathname.includes('vbspo_calendrier.php')) {
+      // Ajouter les paramètres manquants si nécessaire
+      const queryParams = new URLSearchParams(urlObj.search);
+      
+      // Ajouter les paramètres optionnels pour le calendrier complet si pas déjà présents
+      if (!queryParams.has('calend')) {
+        queryParams.append('calend', 'COMPLET');
+      }
+      if (!queryParams.has('division')) {
+        queryParams.append('division', '');
+      }
+      if (!queryParams.has('tour')) {
+        queryParams.append('tour', '');
+      }
+      if (!queryParams.has('x')) {
+        queryParams.append('x', '32');
+      }
+      if (!queryParams.has('y')) {
+        queryParams.append('y', '33');
+      }
+      
+      // Reconstruire l'URL avec tous les paramètres
+      const fullUrl = `${urlObj.origin}${urlObj.pathname}?${queryParams.toString()}`;
+      console.log('✅ URL endpoint PHP direct utilisée:', fullUrl);
+      return [fullUrl];
+    }
+    
+    // CAS 2: URL de page HTML, construire les variantes d'endpoint
     const baseUrl = `${urlObj.protocol}//${urlObj.host}`;
     const pathParts = urlObj.pathname.split('/').filter(p => p);
     const urls: string[] = [];
@@ -502,6 +588,110 @@ export class FFVBScraper {
 
       console.log(`📄 Analyse de la page: ${url}`);
       console.log(`📄 Contenu HTML: ${response.data.length} caractères`);
+
+      // DÉTECTION DES FRAMES (Coupes de France)
+      // Vérifier si la page contient des frames ou iframes (ou frameset)
+      const frames = $('frame, iframe');
+      const framesets = $('frameset');
+      
+      if (frames.length > 0 || framesets.length > 0) {
+        console.log(`🖼️ Page avec frames détectée (${frames.length} frame(s), ${framesets.length} frameset(s))`);
+        
+        // Essayer d'extraire l'URL de la frame qui contient les données
+        const frameUrls: string[] = [];
+        
+        // Extraire depuis les frames classiques
+        frames.each((_, frame) => {
+          const src = $(frame).attr('src');
+          if (src) {
+            // Construire l'URL absolue si c'est une URL relative
+            const frameUrl = src.startsWith('http') 
+              ? src 
+              : new URL(src, url).toString();
+            frameUrls.push(frameUrl);
+            console.log(`🔗 Frame trouvée: ${frameUrl}`);
+          }
+        });
+        
+        // Extraire depuis les framesets (pour les Coupes de France)
+        framesets.find('frame').each((_, frame) => {
+          const src = $(frame).attr('src');
+          if (src) {
+            const frameUrl = src.startsWith('http') 
+              ? src 
+              : new URL(src, url).toString();
+            if (!frameUrls.includes(frameUrl)) {
+              frameUrls.push(frameUrl);
+              console.log(`🔗 Frame depuis frameset trouvée: ${frameUrl}`);
+            }
+          }
+        });
+
+        // Essayer de scraper chaque frame (avec récursion limitée pour éviter les boucles infinies)
+        for (const frameUrl of frameUrls) {
+          try {
+            console.log(`🔍 Tentative de scraping de la frame: ${frameUrl}`);
+            // Charger le contenu de la frame directement
+            const frameResponse = await axios.get(frameUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+                'Referer': url
+              },
+              timeout: 30000
+            });
+            
+            const $frame = cheerio.load(frameResponse.data);
+            const frameMatches: FFVBMatch[] = [];
+            
+            // Essayer d'abord avec extractMatchFromCalendarRow (pour les tableaux FFVB)
+            $frame('table').each((tableIndex, table) => {
+              const $table = $frame(table);
+              
+              // Chercher les lignes avec assez de colonnes pour être un match
+              $table.find('tr').each((_, row) => {
+                const $row = $frame(row);
+                const cells = $row.find('td');
+                
+                // Ignorer les en-têtes (th) et les lignes vides
+                if (cells.length >= 8) {
+                  const match = this.extractMatchFromCalendarRow($row);
+                  if (match) {
+                    frameMatches.push(match);
+                  }
+                }
+              });
+            });
+            
+            // Si pas de matchs trouvés avec extractMatchFromCalendarRow, essayer extractMatchesFromGeneralStructure
+            if (frameMatches.length === 0) {
+              console.log('⚠️ Aucun match trouvé avec extractMatchFromCalendarRow, essai avec extractMatchesFromGeneralStructure...');
+              const generalMatches = this.extractMatchesFromGeneralStructure($frame);
+              frameMatches.push(...generalMatches);
+            }
+            
+            if (frameMatches.length > 0) {
+              console.log(`✅ ${frameMatches.length} match(s) trouvé(s) dans la frame`);
+              matches.push(...frameMatches);
+            }
+          } catch (error) {
+            console.log(`⚠️ Erreur lors du scraping de la frame ${frameUrl}:`, error);
+          }
+        }
+
+        // Si on a trouvé des matchs dans les frames, les retourner
+        if (matches.length > 0) {
+          return matches;
+        }
+
+        // Sinon, essayer aussi l'endpoint PHP directement (comme pour les autres poules)
+        console.log('🔍 Aucun match trouvé dans les frames, tentative avec l\'endpoint PHP...');
+        const phpMatches = await this.scrapeCalendarEndpoint(url);
+        if (phpMatches.length > 0) {
+          return phpMatches;
+        }
+      }
 
       // Analyser le contenu de la page pour comprendre sa structure
       const pageText = $('body').text();
@@ -743,9 +933,77 @@ export class FFVBScraper {
       .join(' ');
   }
 
+  /**
+   * Calcule le dernier dimanche d'un mois donné
+   */
+  private getLastSundayOfMonth(year: number, month: number): number {
+    // Trouver le dernier jour du mois
+    const lastDay = new Date(year, month, 0).getDate(); // 0 = dernier jour du mois précédent
+    
+    // Trouver le jour de la semaine du dernier jour du mois
+    const lastDayDate = new Date(year, month - 1, lastDay); // month - 1 car 0-indexé
+    const dayOfWeek = lastDayDate.getDay(); // 0 = dimanche, 6 = samedi
+    
+    // Calculer le dernier dimanche (reculer jusqu'au dimanche)
+    const lastSunday = lastDay - dayOfWeek;
+    
+    return lastSunday;
+  }
+
+  /**
+   * Détermine si une date est en heure d'été (CEST) en Europe/Paris
+   * L'heure d'été commence le dernier dimanche de mars à 2h00 et se termine le dernier dimanche d'octobre à 3h00
+   */
+  private isDaylightSavingTime(year: number, month: number, day: number, hour: number): boolean {
+    // Si on est avant mars ou après octobre, on est en heure d'hiver
+    if (month < 3 || month > 10) {
+      return false;
+    }
+    
+    // Si on est entre avril et septembre, on est certainement en heure d'été
+    if (month >= 4 && month <= 9) {
+      return true;
+    }
+    
+    // Pour mars et octobre, il faut calculer le dernier dimanche
+    if (month === 3) {
+      // En mars, l'heure d'été commence le dernier dimanche à 2h00
+      const lastSundayOfMarch = this.getLastSundayOfMonth(year, 3);
+      
+      // Si on est après le dernier dimanche, ou si c'est le dernier dimanche après 2h00
+      return day > lastSundayOfMarch || (day === lastSundayOfMarch && hour >= 2);
+    }
+    
+    if (month === 10) {
+      // En octobre, l'heure d'été se termine le dernier dimanche à 3h00
+      const lastSundayOfOctober = this.getLastSundayOfMonth(year, 10);
+      
+      // Si on est avant le dernier dimanche, ou si c'est le dernier dimanche avant 3h00
+      return day < lastSundayOfOctober || (day === lastSundayOfOctober && hour < 3);
+    }
+    
+    return false;
+  }
+
+  /**
+   * Convertit une date/heure en heure française (Europe/Paris) en UTC
+   * Les heures FFVB sont en heure française, on doit les convertir en UTC pour le stockage
+   */
+  private convertParisTimeToUTC(year: number, month: number, day: number, hour: number, minute: number): Date {
+    // Déterminer si on est en heure d'été (CEST = UTC+2) ou d'hiver (CET = UTC+1)
+    const isDST = this.isDaylightSavingTime(year, month, day, hour);
+    const offset = isDST ? 2 : 1; // Offset en heures pour Europe/Paris
+    
+    // Créer la date en UTC en soustrayant l'offset
+    const utcDate = new Date(Date.UTC(year, month - 1, day, hour - offset, minute));
+    
+    return utcDate;
+  }
+
   private parseDate(dateText: string): Date {
     // Formats de date courants FFVB
     // Format typique: "28/09/25 15:00" (DD/MM/YY HH:MM)
+    // IMPORTANT: Les heures FFVB sont en heure française (Europe/Paris), on doit les convertir en UTC
     const datePatterns = [
       /(\d{1,2})\/(\d{1,2})\/(\d{2})\s+(\d{1,2}):(\d{2})/, // DD/MM/YY HH:MM (format court)
       /(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})/, // DD/MM/YYYY HH:MM
@@ -762,24 +1020,24 @@ export class FFVBScraper {
           const [, day, month, year, hour, minute] = match;
           // Convertir YY en YYYY (assumer 2000-2099)
           const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
-          return new Date(fullYear, parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+          return this.convertParisTimeToUTC(fullYear, parseInt(month), parseInt(day), parseInt(hour), parseInt(minute));
         } else if (pattern === datePatterns[1]) {
           // DD/MM/YYYY HH:MM
           const [, day, month, year, hour, minute] = match;
-          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+          return this.convertParisTimeToUTC(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute));
         } else if (pattern === datePatterns[2]) {
-          // DD/MM/YY (sans heure)
+          // DD/MM/YY (sans heure) - pas d'heure, on met minuit en heure française
           const [, day, month, year] = match;
           const fullYear = parseInt(year) < 50 ? 2000 + parseInt(year) : 1900 + parseInt(year);
-          return new Date(fullYear, parseInt(month) - 1, parseInt(day));
+          return this.convertParisTimeToUTC(fullYear, parseInt(month), parseInt(day), 0, 0);
         } else if (pattern === datePatterns[3]) {
-          // DD/MM/YYYY (sans heure)
+          // DD/MM/YYYY (sans heure) - pas d'heure, on met minuit en heure française
           const [, day, month, year] = match;
-          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return this.convertParisTimeToUTC(parseInt(year), parseInt(month), parseInt(day), 0, 0);
         } else if (pattern === datePatterns[4]) {
           // YYYY-MM-DD HH:MM
           const [, year, month, day, hour, minute] = match;
-          return new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute));
+          return this.convertParisTimeToUTC(parseInt(year), parseInt(month), parseInt(day), parseInt(hour), parseInt(minute));
         }
       }
     }

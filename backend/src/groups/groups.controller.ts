@@ -2,17 +2,17 @@ import { Request, Response } from 'express';
 import { GroupsService } from './groups.service';
 import { AuthRequest } from '../auth/auth.middleware';
 import { MatchesService } from '../matches/matches.service';
-import { generatePoolUrl, testPoolCode } from '../utils/poolCodeUtils';
+import { generatePoolUrl, testPoolCode, testFullUrl, isFullUrl } from '../utils/poolCodeUtils';
 import { z } from 'zod';
 
 const createGroupSchema = z.object({
   name: z.string().min(1).max(50),
-  poolCode: z.string().min(2).max(10).optional(),
+  poolCode: z.string().min(2).max(200).optional(), // Augmenté à 200 pour permettre les URLs
   ffvbSourceUrl: z.string().url().optional()
 }).refine(
   (data) => data.poolCode || data.ffvbSourceUrl,
   {
-    message: "Code de poule ou URL FFVB requis",
+    message: "Code de poule (format court) ou URL FFVB complète requis",
     path: ["poolCode"]
   }
 );
@@ -34,23 +34,57 @@ export class GroupsController {
       const data = createGroupSchema.parse(req.body);
       const userId = req.userId!;
       
-      // Si un code de poule est fourni, générer l'URL et tester
+      // Si un code de poule est fourni, déterminer s'il s'agit d'une URL complète ou d'un code court
       let ffvbSourceUrl = data.ffvbSourceUrl;
       if (data.poolCode) {
-        // Tester si le code de poule est valide et trouve des matchs
-        const testResult = await testPoolCode(data.poolCode);
-        
-        if (!testResult.success) {
-          return res.status(400).json({
-            code: 'POOL_NOT_FOUND',
-            message: `Aucun match trouvé pour le code de poule "${data.poolCode}". Vérifiez que le code est correct (ex: 3mb, 2fc, msl).`
-          });
+        // Vérifier si c'est une URL complète ou un code court
+        if (isFullUrl(data.poolCode)) {
+          // URL complète (régionales/départementales)
+          console.log('🔗 URL complète détectée, test en cours...');
+          const testResult = await testFullUrl(data.poolCode);
+          
+          if (!testResult.success) {
+            return res.status(400).json({
+              code: 'POOL_NOT_FOUND',
+              message: testResult.message || `Aucun match trouvé pour l'URL fournie. Vérifiez que l'URL est correcte et contient des matchs.`
+            });
+          }
+          
+          ffvbSourceUrl = testResult.url;
+          console.log(`✅ URL complète valide : ${testResult.matchCount} match(s) trouvé(s)`);
+        } else {
+          // Code court (pro/nationale 3)
+          console.log('🔢 Code court détecté, génération de l\'URL...');
+          const testResult = await testPoolCode(data.poolCode);
+          
+          if (!testResult.success) {
+            return res.status(400).json({
+              code: 'POOL_NOT_FOUND',
+              message: `Aucun match trouvé pour le code de poule "${data.poolCode}". Vérifiez que le code est correct (ex: 3mb, 2fc, msl). Pour les poules régionales/départementales, utilisez l'URL complète.`
+            });
+          }
+          
+          ffvbSourceUrl = testResult.url;
+          console.log(`✅ Code de poule "${data.poolCode}" valide : ${testResult.matchCount} match(s) trouvé(s)`);
         }
-        
-        ffvbSourceUrl = testResult.url;
-        
-        // Confirmer avec le nombre de matchs trouvés
-        console.log(`✅ Code de poule "${data.poolCode}" valide : ${testResult.matchCount} match(s) trouvé(s)`);
+      }
+      
+      // Si ffvbSourceUrl est fourni directement (sans poolCode), le tester aussi
+      if (ffvbSourceUrl && !data.poolCode) {
+        if (isFullUrl(ffvbSourceUrl)) {
+          console.log('🔗 URL FFVB fournie directement, test en cours...');
+          const testResult = await testFullUrl(ffvbSourceUrl);
+          
+          if (!testResult.success) {
+            return res.status(400).json({
+              code: 'POOL_NOT_FOUND',
+              message: testResult.message || `Aucun match trouvé pour l'URL fournie. Vérifiez que l'URL est correcte et contient des matchs.`
+            });
+          }
+          
+          ffvbSourceUrl = testResult.url;
+          console.log(`✅ URL FFVB valide : ${testResult.matchCount} match(s) trouvé(s)`);
+        }
       }
       
       const group = await this.groupsService.createGroup({

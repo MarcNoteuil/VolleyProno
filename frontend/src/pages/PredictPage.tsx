@@ -435,12 +435,14 @@ export default function PredictPage() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
+    // Utiliser toLocaleString pour afficher date + heure selon le fuseau horaire de l'utilisateur
+    return new Date(dateString).toLocaleString('fr-FR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Utiliser le fuseau horaire de l'utilisateur
     });
   };
 
