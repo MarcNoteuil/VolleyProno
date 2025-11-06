@@ -153,7 +153,8 @@ export default function PredictPage() {
     
     const home = typeof predictedHome === 'number' ? predictedHome : 0;
     const away = typeof predictedAway === 'number' ? predictedAway : 0;
-    const totalSets = Math.max(home, away) === 3 ? (home === 3 && away === 0 ? 3 : home === 3 && away === 1 ? 4 : 5) : 5;
+    // Le nombre total de sets est simplement la somme des sets gagnés par chaque équipe
+    const totalSets = home + away;
     
     if (prediction) {
       // Si on a une prédiction existante, mettre à jour les inputs seulement si les scores détaillés sont affichés
@@ -282,7 +283,8 @@ export default function PredictPage() {
 
     let homeSetsWon = 0;
     let awaySetsWon = 0;
-    const totalSets = Math.max(home, away) === 3 ? (home === 3 && away === 0 ? 3 : home === 3 && away === 1 ? 4 : 5) : 5;
+    // Le nombre total de sets est simplement la somme des sets gagnés par chaque équipe
+    const totalSets = home + away;
 
     // Vérifier que le match se termine dès qu'une équipe gagne 3 sets
     for (let i = 0; i < setScores.length; i++) {
@@ -434,6 +436,32 @@ export default function PredictPage() {
     }
   };
 
+  const swapSetScores = (index: number) => {
+    const newInputs = { ...setScoreInputs };
+    if (!newInputs[`set_${index}`]) {
+      newInputs[`set_${index}`] = { home: '', away: '' };
+    }
+    
+    // Inverser les valeurs dans les inputs
+    const tempHome = newInputs[`set_${index}`].home;
+    const tempAway = newInputs[`set_${index}`].away;
+    newInputs[`set_${index}`].home = tempAway;
+    newInputs[`set_${index}`].away = tempHome;
+    setSetScoreInputs(newInputs);
+
+    // Inverser les valeurs dans les scores
+    const newScores = [...predictedSetScores];
+    if (newScores[index]) {
+      const tempHomeScore = newScores[index].home;
+      const tempAwayScore = newScores[index].away;
+      newScores[index] = {
+        home: tempAwayScore,
+        away: tempHomeScore
+      };
+      setPredictedSetScores(newScores);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     // Utiliser toLocaleString pour afficher date + heure selon le fuseau horaire de l'utilisateur
     return new Date(dateString).toLocaleString('fr-FR', {
@@ -572,14 +600,18 @@ export default function PredictPage() {
                   id="risky-mode"
                   checked={isRisky}
                   onChange={(e) => {
-                    if (!riskyCooldown?.canUse && e.target.checked) {
+                    // Permettre de décocher le mode risqué même si le cooldown n'est pas disponible
+                    // (car c'est une modification d'un pronostic existant)
+                    if (e.target.checked && !riskyCooldown?.canUse && !prediction?.isRisky) {
                       setError('Le mode risqué est en cooldown. Vous ne pouvez pas l\'utiliser pour le moment.');
                       return;
                     }
                     setIsRisky(e.target.checked);
                     setError('');
                   }}
-                  disabled={!riskyCooldown?.canUse}
+                  // Désactiver seulement si on essaie de cocher le mode risqué alors que le cooldown n'est pas disponible
+                  // ET que ce n'est pas une modification d'un pronostic qui avait déjà le mode risqué
+                  disabled={!riskyCooldown?.canUse && !isRisky && !prediction?.isRisky}
                   className="mt-1 w-5 h-5 text-orange-500 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <div className="flex-1">
@@ -622,7 +654,8 @@ export default function PredictPage() {
                   if (!showDetailedScores && predictedSetScores.length === 0 && predictedHome !== '' && predictedAway !== '') {
                     const home = typeof predictedHome === 'number' ? predictedHome : 0;
                     const away = typeof predictedAway === 'number' ? predictedAway : 0;
-                    const totalSets = Math.max(home, away) === 3 ? (home === 3 && away === 0 ? 3 : home === 3 && away === 1 ? 4 : 5) : 5;
+                    // Le nombre total de sets est simplement la somme des sets gagnés par chaque équipe
+                    const totalSets = home + away;
                     const newScores: SetScore[] = Array(totalSets).fill(null).map(() => ({ home: 0, away: 0 }));
                     setPredictedSetScores(newScores);
                     const inputs: Record<string, { home: string; away: string }> = {};
@@ -651,49 +684,69 @@ export default function PredictPage() {
             </div>
 
             {/* Scores détaillés par set - Cases blanches */}
-            {showDetailedScores && predictedSetScores.length > 0 && (
-              <div>
-                <label className="block text-sm font-bold-sport text-gray-300 mb-3">
-                  Scores détaillés par set - Bonus +2 pts si exact
-                </label>
-                <div className="grid grid-cols-5 gap-3">
-                  {predictedSetScores.map((setScore, index) => {
-                    const isFifthSet = index === 4;
-                    return (
-                      <div key={index} className="bg-white rounded-lg p-3 shadow-lg">
-                        <div className="text-xs text-gray-500 mb-2 font-bold-sport text-center">
-                          SET {index + 1}
-                          {isFifthSet && (
-                            <span className="block text-orange-600 text-xs mt-1 font-bold">(15 pts)</span>
-                          )}
+            {showDetailedScores && predictedSetScores.length > 0 && (() => {
+              const home = typeof predictedHome === 'number' ? predictedHome : 0;
+              const away = typeof predictedAway === 'number' ? predictedAway : 0;
+              // Le nombre total de sets est simplement la somme des sets gagnés par chaque équipe
+              const totalSets = home + away;
+              // N'afficher que le nombre de sets correspondant au pronostic
+              const displayedSets = predictedSetScores.slice(0, totalSets);
+              
+              return (
+                <div>
+                  <label className="block text-sm font-bold-sport text-gray-300 mb-3">
+                    Scores détaillés par set - Bonus +2 pts si exact
+                  </label>
+                  <div className={`grid gap-3 ${totalSets === 3 ? 'grid-cols-3' : totalSets === 4 ? 'grid-cols-4' : 'grid-cols-5'}`}>
+                    {displayedSets.map((setScore, index) => {
+                      const isFifthSet = index === 4;
+                      return (
+                        <div key={index} className="bg-white rounded-lg p-3 shadow-lg">
+                          <div className="text-xs text-gray-500 mb-2 font-bold-sport text-center">
+                            SET {index + 1}
+                            {isFifthSet && (
+                              <span className="block text-orange-600 text-xs mt-1 font-bold">(15 pts)</span>
+                            )}
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              min="0"
+                              max="50"
+                              value={setScoreInputs[`set_${index}`]?.home ?? (setScore.home === 0 ? '' : String(setScore.home))}
+                              onChange={(e) => updateSetScore(index, 'home', e.target.value)}
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-white border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black text-center font-bold-sport text-sm"
+                            />
+                            <div className="flex items-center justify-center py-1">
+                              <button
+                                type="button"
+                                onClick={() => swapSetScores(index)}
+                                className="text-orange-500 hover:text-orange-600 transition-colors cursor-pointer flex items-center justify-center"
+                                title="Inverser les scores"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                                </svg>
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              max="50"
+                              value={setScoreInputs[`set_${index}`]?.away ?? (setScore.away === 0 ? '' : String(setScore.away))}
+                              onChange={(e) => updateSetScore(index, 'away', e.target.value)}
+                              placeholder="0"
+                              className="w-full px-2 py-2 bg-white border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black text-center font-bold-sport text-sm"
+                            />
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                        <input
-                          type="number"
-                          min="0"
-                          max="50"
-                          value={setScoreInputs[`set_${index}`]?.home ?? (setScore.home === 0 ? '' : String(setScore.home))}
-                          onChange={(e) => updateSetScore(index, 'home', e.target.value)}
-                          placeholder="0"
-                          className="w-full px-2 py-2 bg-white border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black text-center font-bold-sport text-sm"
-                        />
-                        <div className="text-center text-gray-400 text-xs">-</div>
-                        <input
-                          type="number"
-                          min="0"
-                          max="50"
-                          value={setScoreInputs[`set_${index}`]?.away ?? (setScore.away === 0 ? '' : String(setScore.away))}
-                          onChange={(e) => updateSetScore(index, 'away', e.target.value)}
-                          placeholder="0"
-                          className="w-full px-2 py-2 bg-white border-2 border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-black text-center font-bold-sport text-sm"
-                        />
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {error && (
               <div className="bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg font-bold-sport">

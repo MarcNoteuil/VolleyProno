@@ -11,8 +11,13 @@ model User {
   id            String   @id @default(cuid())
   email         String   @unique
   passwordHash  String
-  pseudo        String   @unique
+  pseudo        String   @unique @db.VarChar(191)
+  firstName     String?  // Prénom
+  lastName      String?  // Nom
+  avatar        String?  @db.LongText // URL de l'avatar/photo (peut être base64)
+  favoriteTeam  String?  // Équipe préférée
   role          UserRole @default(USER)
+  lastLoginAt   DateTime? // Dernière connexion
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

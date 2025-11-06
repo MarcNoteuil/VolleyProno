@@ -6,6 +6,10 @@ interface User {
   id: string;
   email: string;
   pseudo: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatar?: string | null;
+  favoriteTeam?: string | null;
   role?: 'USER' | 'ADMIN';
 }
 

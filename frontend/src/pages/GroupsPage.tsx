@@ -11,6 +11,8 @@ interface Group {
     user: {
       id: string;
       pseudo: string;
+      firstName?: string | null;
+      avatar?: string | null;
     };
     role: 'OWNER' | 'ADMIN' | 'MEMBER';
   }>;

@@ -18,15 +18,23 @@ export class AuthService {
   async register(data: RegisterData) {
     const { email, pseudo, password } = data;
 
-    // Vérifier si l'utilisateur existe déjà
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { pseudo }]
-      }
+    // Vérifier si l'email existe déjà
+    const existingEmail = await prisma.user.findUnique({
+      where: { email }
     });
 
-    if (existingUser) {
-      throw new Error('Email ou pseudo déjà utilisé');
+    if (existingEmail) {
+      throw new Error('Email déjà utilisé');
+    }
+
+    // Vérifier si le pseudo existe déjà (sensible à la casse)
+    // "Lrd" et "lrd" sont considérés comme différents, mais "Lrd" et "Lrd" sont identiques
+    const existingPseudo = await prisma.user.findUnique({
+      where: { pseudo }
+    });
+
+    if (existingPseudo) {
+      throw new Error('Ce pseudo est déjà utilisé');
     }
 
     // Hasher le mot de passe
@@ -43,6 +51,11 @@ export class AuthService {
         id: true,
         email: true,
         pseudo: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        favoriteTeam: true,
+        role: true,
         createdAt: true
       }
     });
@@ -68,6 +81,15 @@ export class AuthService {
       throw new Error('Email ou mot de passe incorrect');
     }
 
+    // Sauvegarder la date de dernière connexion avant de la mettre à jour
+    const previousLastLoginAt = user.lastLoginAt;
+
+    // Mettre à jour la date de dernière connexion
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() }
+    });
+
     // Générer les tokens
     const accessToken = jwt.sign(
       { userId: user.id },
@@ -85,7 +107,12 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        pseudo: user.pseudo
+        pseudo: user.pseudo,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        avatar: user.avatar,
+        favoriteTeam: user.favoriteTeam,
+        role: user.role
       },
       accessToken,
       refreshToken
@@ -98,7 +125,16 @@ export class AuthService {
       
       const user = await prisma.user.findUnique({
         where: { id: decoded.userId },
-        select: { id: true, email: true, pseudo: true }
+        select: { 
+          id: true, 
+          email: true, 
+          pseudo: true,
+          firstName: true,
+          lastName: true,
+          avatar: true,
+          favoriteTeam: true,
+          role: true
+        }
       });
 
       if (!user) {

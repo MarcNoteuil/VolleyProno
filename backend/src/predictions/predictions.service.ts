@@ -34,9 +34,8 @@ export class PredictionsService {
     // Compter les sets gagnés par chaque équipe dans les scores détaillés
     let homeSetsWon = 0;
     let awaySetsWon = 0;
-    const totalSets = Math.max(predictedHome, predictedAway) === 3 
-      ? (predictedHome === 3 && predictedAway === 0 ? 3 : predictedHome === 3 && predictedAway === 1 ? 4 : 5) 
-      : 5;
+    // Le nombre total de sets est simplement la somme des sets gagnés par chaque équipe
+    const totalSets = predictedHome + predictedAway;
 
     // Vérifier que le match se termine dès qu'une équipe gagne 3 sets
     for (let i = 0; i < setScores.length; i++) {
@@ -130,42 +129,75 @@ export class PredictionsService {
       throw new Error('Ce match est verrouillé, impossible de modifier le pronostic');
     }
 
-    // Vérifier que le match n'a pas encore commencé (24h avant)
+    // Vérifier que le match n'a pas encore commencé
     const now = new Date();
-    const lockTime = new Date(match.startAt.getTime() - 24 * 60 * 60 * 1000); // 24h avant le début
     
-    // Calculer dynamiquement si le match est verrouillé
-    const isLockedDynamically = now >= lockTime || match.isLocked;
+    // Calculer dynamiquement si le match est verrouillé (à l'heure exacte du match)
+    const isLockedDynamically = now >= match.startAt || match.isLocked;
     
     if (isLockedDynamically) {
-      throw new Error('Le délai pour pronostiquer ce match est dépassé (fermeture 24h avant le début du match)');
+      throw new Error('Le délai pour pronostiquer ce match est dépassé (fermeture à l\'heure du match)');
     }
 
-    // Vérifier le cooldown du mode risqué si activé
-    if (isRisky) {
-      const cooldownCheck = await this.canUseRiskyMode(userId, match.groupId);
-      if (!cooldownCheck.canUse) {
-        const nextDate = cooldownCheck.nextAvailableDate!;
-        const daysRemaining = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        throw new Error(`Le mode risqué est en cooldown. Vous pouvez l'utiliser à nouveau dans ${daysRemaining} jour(s) (${nextDate.toLocaleDateString('fr-FR')}).`);
+    // Vérifier si c'est une modification d'un pronostic existant
+    const existingPrediction = await prisma.prediction.findUnique({
+      where: {
+        userId_matchId: {
+          userId,
+          matchId
+        }
       }
+    });
 
-      // Mettre à jour ou créer le cooldown
-      await prisma.riskyPredictionCooldown.upsert({
+    const wasRisky = existingPrediction?.isRisky || false;
+    const isModifying = !!existingPrediction;
+
+    // Gérer le mode risqué
+    if (isRisky) {
+      // Si c'est une modification et que le pronostic avait déjà le mode risqué, on ne vérifie pas le cooldown
+      // (car c'est le même pronostic, on ne consomme pas un nouveau cooldown)
+      if (!isModifying || !wasRisky) {
+        // Nouveau pronostic risqué ou modification d'un pronostic non risqué -> vérifier le cooldown
+        const cooldownCheck = await this.canUseRiskyMode(userId, match.groupId);
+        if (!cooldownCheck.canUse) {
+          const nextDate = cooldownCheck.nextAvailableDate!;
+          const daysRemaining = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          throw new Error(`Le mode risqué est en cooldown. Vous pouvez l'utiliser à nouveau dans ${daysRemaining} jour(s) (${nextDate.toLocaleDateString('fr-FR')}).`);
+        }
+
+        // Mettre à jour ou créer le cooldown seulement si c'est un nouveau pronostic risqué
+        // ou si on active le mode risqué sur un pronostic qui ne l'avait pas
+        await prisma.riskyPredictionCooldown.upsert({
+          where: {
+            userId_groupId: {
+              userId,
+              groupId: match.groupId
+            }
+          },
+          update: {
+            lastUsed: now
+          },
+          create: {
+            userId,
+            groupId: match.groupId,
+            lastUsed: now
+          }
+        });
+      }
+      // Si c'est une modification et que le pronostic avait déjà le mode risqué, on ne fait rien
+      // (on garde le cooldown existant, on ne le met pas à jour)
+    } else if (isModifying && wasRisky) {
+      // Si on décoche le mode risqué sur un pronostic qui l'avait, on libère le cooldown
+      // (supprimer le cooldown pour permettre de l'utiliser sur un autre pronostic)
+      await prisma.riskyPredictionCooldown.delete({
         where: {
           userId_groupId: {
             userId,
             groupId: match.groupId
           }
-        },
-        update: {
-          lastUsed: now
-        },
-        create: {
-          userId,
-          groupId: match.groupId,
-          lastUsed: now
         }
+      }).catch(() => {
+        // Ignorer l'erreur si le cooldown n'existe pas (déjà supprimé)
       });
     }
 
@@ -247,11 +279,10 @@ export class PredictionsService {
     }
 
     const now = new Date();
-    const lockTime = new Date(match.startAt.getTime() - 24 * 60 * 60 * 1000);
-    const isLockedDynamically = now >= lockTime || match.isLocked;
+    const isLockedDynamically = now >= match.startAt || match.isLocked;
 
     if (isLockedDynamically) {
-      throw new Error('Le délai pour modifier ce pronostic est dépassé (fermeture 24h avant le début du match)');
+      throw new Error('Le délai pour modifier ce pronostic est dépassé (fermeture à l\'heure du match)');
     }
 
     // Valider que les scores de sets correspondent au nombre de sets gagnés
@@ -334,12 +365,11 @@ export class PredictionsService {
       }
     });
 
-    // Calculer dynamiquement isLocked pour chaque match (24h avant le début)
+    // Calculer dynamiquement isLocked pour chaque match (à l'heure exacte du match)
     const now = new Date();
     return predictions.map(prediction => {
       const match = prediction.match;
-      const lockTime = new Date(match.startAt.getTime() - 24 * 60 * 60 * 1000); // 24h avant
-      const isLockedDynamically = now >= lockTime || match.isLocked;
+      const isLockedDynamically = now >= match.startAt || match.isLocked;
       
       return {
         ...prediction,
@@ -583,5 +613,99 @@ export class PredictionsService {
       nextAvailableDate.setDate(nextAvailableDate.getDate() + 7);
       return { canUse: false, nextAvailableDate };
     }
+  }
+
+  /**
+   * Récupère les pronostics terminés depuis la dernière connexion de l'utilisateur
+   * avec leurs points gagnés/perdus
+   */
+  async getPredictionsSinceLastLogin(userId: string) {
+    // Récupérer la date de dernière connexion de l'utilisateur
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { lastLoginAt: true }
+    });
+
+    if (!user) {
+      throw new Error('Utilisateur non trouvé');
+    }
+
+    // Si c'est la première connexion (lastLoginAt est null), on ne retourne rien
+    // Note: lastLoginAt a déjà été mis à jour lors de la connexion,
+    // donc on cherche les pronostics terminés dans les 7 derniers jours
+    // pour être sûr de ne rien manquer
+    if (!user.lastLoginAt) {
+      return {
+        totalPoints: 0,
+        predictions: []
+      };
+    }
+
+    // Calculer la date de référence (7 jours avant maintenant)
+    // On cherche les pronostics terminés dans les 7 derniers jours
+    // (pour éviter de manquer des pronostics si la dernière connexion était il y a longtemps)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    // Récupérer tous les pronostics terminés depuis la dernière connexion
+    // où les points ont été attribués (pointsAwarded !== null)
+    // On filtre par updatedAt du match pour trouver les matchs terminés récemment
+    const predictions = await prisma.prediction.findMany({
+      where: {
+        userId,
+        pointsAwarded: { not: null },
+        match: {
+          status: 'FINISHED',
+          updatedAt: { gte: sevenDaysAgo }
+        }
+      },
+      include: {
+        match: {
+          select: {
+            id: true,
+            homeTeam: true,
+            awayTeam: true,
+            setsHome: true,
+            setsAway: true,
+            startAt: true,
+            group: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        match: {
+          startAt: 'desc'
+        }
+      }
+    });
+
+    // Calculer le total des points
+    const totalPoints = predictions.reduce((sum, pred) => {
+      return sum + (pred.pointsAwarded || 0);
+    }, 0);
+
+    return {
+      totalPoints,
+      predictions: predictions.map(pred => ({
+        id: pred.id,
+        matchId: pred.matchId,
+        homeTeam: pred.match.homeTeam,
+        awayTeam: pred.match.awayTeam,
+        predictedHome: pred.predictedHome,
+        predictedAway: pred.predictedAway,
+        actualHome: pred.match.setsHome,
+        actualAway: pred.match.setsAway,
+        pointsAwarded: pred.pointsAwarded || 0,
+        isRisky: pred.isRisky || false,
+        matchDate: pred.match.startAt,
+        groupName: pred.match.group.name,
+        groupId: pred.match.group.id
+      }))
+    };
   }
 }

@@ -19,7 +19,7 @@ export class CronJobManager {
   }
 
   /**
-   * Job pour verrouiller les matchs 24h avant le début
+   * Job pour verrouiller les matchs à l'heure exacte du début
    * Exécuté toutes les heures
    */
   private startLockMatchesJob() {
@@ -28,12 +28,11 @@ export class CronJobManager {
         logger.info('Début du job de verrouillage des matchs');
         
         const now = new Date();
-        const lockTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24h dans le futur
 
         const matches = await prisma.match.findMany({
           where: {
             startAt: {
-              lte: lockTime
+              lte: now // Matchs qui ont commencé ou sont en cours
             },
             isLocked: false
           }

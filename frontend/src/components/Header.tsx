@@ -103,12 +103,30 @@ export default function Header() {
           <div className="flex items-center space-x-3">
             {isAuthenticated && user ? (
               <>
-                <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-gray-800 rounded-lg border border-gray-700">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <Link
+                  to="/profil"
+                  className={`hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-lg border transition-all duration-200 ${
+                    isActive('/profil')
+                      ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/50'
+                      : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
+                  }`}
+                >
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt="Avatar"
+                      className="w-6 h-6 rounded-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  )}
                   <span className="text-sm font-bold-sport text-gray-300">
-                    {user.pseudo}
+                    {user.pseudo || user.firstName}
                   </span>
-                </div>
+                </Link>
                 <button
                   onClick={logout}
                   className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-bold-sport hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg shadow-red-500/30 hover:shadow-red-500/50"

@@ -23,7 +23,9 @@ export class RankingService {
         user: {
           select: {
             id: true,
-            pseudo: true
+            pseudo: true,
+            firstName: true,
+            avatar: true
           }
         }
       }
@@ -121,7 +123,9 @@ export class RankingService {
     const allUsers = await prisma.user.findMany({
       select: {
         id: true,
-        pseudo: true
+        pseudo: true,
+        firstName: true,
+        avatar: true
       }
     });
 
@@ -147,14 +151,16 @@ export class RankingService {
 
     // Calculer les points totaux pour chaque utilisateur
     // On initialise tous les utilisateurs à 0 points
-    const userPointsMap = new Map<string, { user: { id: string; pseudo: string }; totalPoints: number }>();
+    const userPointsMap = new Map<string, { user: { id: string; pseudo: string; firstName: string | null; avatar: string | null }; totalPoints: number }>();
 
     // Initialiser tous les utilisateurs avec 0 points
     for (const user of allUsers) {
       userPointsMap.set(user.id, {
         user: {
           id: user.id,
-          pseudo: user.pseudo
+          pseudo: user.pseudo,
+          firstName: user.firstName,
+          avatar: user.avatar
         },
         totalPoints: 0
       });

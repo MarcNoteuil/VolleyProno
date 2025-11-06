@@ -22,10 +22,14 @@ interface Match {
     id: string;
     predictedHome: number;
     predictedAway: number;
+    predictedSetScores?: SetScore[];
+    isRisky?: boolean;
     pointsAwarded?: number;
     user: {
       id: string;
       pseudo: string;
+      avatar?: string | null;
+      firstName?: string | null;
     };
   }>;
 }
@@ -44,6 +48,8 @@ interface Group {
     user: {
       id: string;
       pseudo: string;
+      firstName?: string | null;
+      avatar?: string | null;
     };
     role: 'OWNER' | 'ADMIN' | 'MEMBER';
   }>;
@@ -66,9 +72,22 @@ export default function GroupDetailPage() {
   const [filterDate, setFilterDate] = useState<string>('');
   const [filterTeam, setFilterTeam] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterHasPredictions, setFilterHasPredictions] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState(false);
   const [showTransferLeadershipModal, setShowTransferLeadershipModal] = useState(false);
   const [selectedNewLeaderId, setSelectedNewLeaderId] = useState<string>('');
+  const [groupRanking, setGroupRanking] = useState<Array<{
+    user: {
+      id: string;
+      pseudo: string;
+      firstName?: string | null;
+      avatar?: string | null;
+    };
+    totalPoints: number;
+    position: number;
+  }>>([]);
+  const [showTeamRanking, setShowTeamRanking] = useState(true);
+  const [showPredictionsDetails, setShowPredictionsDetails] = useState<Record<string, boolean>>({});
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -91,14 +110,16 @@ export default function GroupDetailPage() {
     setError('');
     
     try {
-      // Charger les deux requêtes en parallèle
-      const [groupResponse, matchesResponse] = await Promise.all([
+      // Charger les trois requêtes en parallèle
+      const [groupResponse, matchesResponse, rankingResponse] = await Promise.all([
         api.get(`/groups/${groupId}`),
-        api.get(`/matches?groupId=${groupId}`)
+        api.get(`/matches?groupId=${groupId}`),
+        api.get(`/ranking/${groupId}`).catch(() => ({ data: { data: [] } })) // Ignorer l'erreur si le classement n'est pas disponible
       ]);
       
       setGroup(groupResponse.data.data);
       setMatches(matchesResponse.data.data);
+      setGroupRanking(rankingResponse.data.data || []);
       setLoading(false);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur lors du chargement des données');
@@ -285,6 +306,10 @@ export default function GroupDetailPage() {
       filtered = filtered.filter(match => match.status === filterStatus);
     }
 
+    if (filterHasPredictions) {
+      filtered = filtered.filter(match => match.predictions && match.predictions.length > 0);
+    }
+
     // Appliquer le tri
     switch (sortBy) {
       case 'date':
@@ -350,13 +375,200 @@ export default function GroupDetailPage() {
 
   const filteredAndSortedMatches = getFilteredAndSortedMatches();
 
+  // Fonction pour calculer le classement des équipes
+  const calculateTeamRanking = () => {
+    // Filtrer uniquement les matchs finis avec des scores de sets valides
+    const finishedMatches = matches.filter(m => {
+      const isValid = m.status === 'FINISHED' && 
+        m.setsHome !== undefined && 
+        m.setsAway !== undefined &&
+        m.setsHome !== null &&
+        m.setsAway !== null &&
+        typeof m.setsHome === 'number' &&
+        typeof m.setsAway === 'number' &&
+        m.setsHome >= 0 &&
+        m.setsAway >= 0 &&
+        (m.setsHome === 3 || m.setsAway === 3); // Un match fini doit avoir une équipe avec 3 sets
+      return isValid;
+    });
+    
+    // Détecter si c'est une coupe (via l'URL FFVB)
+    const isCoupe = group?.ffvbSourceUrl?.includes('index_com.htm') || group?.ffvbSourceUrl?.includes('coupe');
+    
+    // Pour une coupe, on retourne la liste des équipes encore en lice
+    // Au début, toutes les équipes sont en lice, puis on retire celles qui ont perdu
+    if (isCoupe) {
+      // Récupérer toutes les équipes qui ont participé à des matchs (terminés ou non)
+      const allTeams = new Set<string>();
+      matches.forEach(match => {
+        allTeams.add(match.homeTeam);
+        allTeams.add(match.awayTeam);
+      });
+      
+      // Récupérer les équipes qui ont perdu un match terminé
+      const eliminatedTeams = new Set<string>();
+      finishedMatches.forEach(match => {
+        if (match.setsHome! > match.setsAway!) {
+          // L'équipe à domicile a gagné, l'équipe à l'extérieur est éliminée
+          eliminatedTeams.add(match.awayTeam);
+        } else {
+          // L'équipe à l'extérieur a gagné, l'équipe à domicile est éliminée
+          eliminatedTeams.add(match.homeTeam);
+        }
+      });
+      
+      // Les équipes encore en lice sont celles qui n'ont pas été éliminées
+      const teamsStillIn = Array.from(allTeams).filter(team => !eliminatedTeams.has(team));
+      
+      return teamsStillIn.map(team => ({ name: team, isStillIn: true }));
+    }
+    
+    // Pour un championnat, calculer le classement
+    const teamStats: Record<string, {
+      name: string;
+      points: number;
+      wins: number;
+      losses: number;
+      setsWon: number;
+      setsLost: number;
+      pointsWon: number;
+      pointsLost: number;
+      matchesPlayed: number;
+    }> = {};
+    
+    finishedMatches.forEach(match => {
+      const homeTeam = match.homeTeam;
+      const awayTeam = match.awayTeam;
+      const homeSets = match.setsHome!;
+      const awaySets = match.setsAway!;
+      
+      // Initialiser les stats si nécessaire
+      if (!teamStats[homeTeam]) {
+        teamStats[homeTeam] = {
+          name: homeTeam,
+          points: 0,
+          wins: 0,
+          losses: 0,
+          setsWon: 0,
+          setsLost: 0,
+          pointsWon: 0,
+          pointsLost: 0,
+          matchesPlayed: 0
+        };
+      }
+      if (!teamStats[awayTeam]) {
+        teamStats[awayTeam] = {
+          name: awayTeam,
+          points: 0,
+          wins: 0,
+          losses: 0,
+          setsWon: 0,
+          setsLost: 0,
+          pointsWon: 0,
+          pointsLost: 0,
+          matchesPlayed: 0
+        };
+      }
+      
+      // Calculer les points selon les règles du volley-ball
+      // 3 pts pour 3-0 ou 3-1
+      // 2 pts pour 3-2
+      // 1 pt pour 2-3
+      // 0 pts pour 0-3 ou 1-3
+      let homePoints = 0;
+      let awayPoints = 0;
+      
+      if (homeSets === 3 && awaySets === 0) {
+        homePoints = 3;
+        awayPoints = 0;
+      } else if (homeSets === 3 && awaySets === 1) {
+        homePoints = 3;
+        awayPoints = 0;
+      } else if (homeSets === 3 && awaySets === 2) {
+        homePoints = 2;
+        awayPoints = 1;
+      } else if (homeSets === 2 && awaySets === 3) {
+        homePoints = 1;
+        awayPoints = 2;
+      } else if (homeSets === 1 && awaySets === 3) {
+        homePoints = 0;
+        awayPoints = 3;
+      } else if (homeSets === 0 && awaySets === 3) {
+        homePoints = 0;
+        awayPoints = 3;
+      }
+      
+      teamStats[homeTeam].points += homePoints;
+      teamStats[awayTeam].points += awayPoints;
+      teamStats[homeTeam].setsWon += homeSets;
+      teamStats[homeTeam].setsLost += awaySets;
+      teamStats[awayTeam].setsWon += awaySets;
+      teamStats[awayTeam].setsLost += homeSets;
+      
+      if (homeSets > awaySets) {
+        teamStats[homeTeam].wins++;
+        teamStats[awayTeam].losses++;
+      } else {
+        teamStats[awayTeam].wins++;
+        teamStats[homeTeam].losses++;
+      }
+      
+      teamStats[homeTeam].matchesPlayed++;
+      teamStats[awayTeam].matchesPlayed++;
+      
+      // Calculer les points totaux (si setScores est disponible)
+      if (match.setScores && match.setScores.length > 0) {
+        match.setScores.forEach(setScore => {
+          if (setScore.home > 0 || setScore.away > 0) {
+            teamStats[homeTeam].pointsWon += setScore.home;
+            teamStats[homeTeam].pointsLost += setScore.away;
+            teamStats[awayTeam].pointsWon += setScore.away;
+            teamStats[awayTeam].pointsLost += setScore.home;
+          }
+        });
+      }
+    });
+    
+    // Convertir en tableau et calculer les averages (pour le tri uniquement)
+    const ranking = Object.values(teamStats).map(team => {
+      const setAverage = team.setsLost > 0 ? team.setsWon / team.setsLost : (team.setsWon > 0 ? team.setsWon : 0);
+      const pointAverage = team.pointsLost > 0 ? team.pointsWon / team.pointsLost : (team.pointsWon > 0 ? team.pointsWon : 0);
+      
+      return {
+        ...team,
+        setAverage,
+        pointAverage
+      };
+    });
+    
+    // Trier par points (décroissant), puis set average (décroissant), puis point average (décroissant)
+    ranking.sort((a, b) => {
+      if (b.points !== a.points) {
+        return b.points - a.points;
+      }
+      if (b.setAverage !== a.setAverage) {
+        return b.setAverage - a.setAverage;
+      }
+      return b.pointAverage - a.pointAverage;
+    });
+    
+    // Ajouter la position
+    return ranking.map((team, index) => ({
+      ...team,
+      position: index + 1
+    }));
+  };
+  
+  const teamRanking = calculateTeamRanking();
+  const isCoupe = group?.ffvbSourceUrl?.includes('index_com.htm') || group?.ffvbSourceUrl?.includes('coupe');
+
   // Extraire toutes les équipes uniques pour le filtre
   const allTeams = Array.from(new Set(
     matches.flatMap(match => [match.homeTeam, match.awayTeam])
   )).sort();
 
   // Compter les matchs filtrés
-  const activeFiltersCount = [filterDate, filterTeam, filterStatus].filter(f => f !== '').length;
+  const activeFiltersCount = [filterDate, filterTeam, filterStatus].filter(f => f !== '').length + (filterHasPredictions ? 1 : 0);
   
   const clearFilters = () => {
     setFilterDate('');
@@ -380,7 +592,7 @@ export default function GroupDetailPage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
         <div className="text-center">
           <p className="text-red-500 mb-3 font-bold-sport text-sm">{error}</p>
-          <Link to="/groups" className="text-orange-500 hover:text-orange-400 font-bold-sport text-xs">
+          <Link to="/groups" className="text-orange-500 hover:text-orange-400 font-bold-sport text-sm">
             Retour aux groupes
           </Link>
         </div>
@@ -394,7 +606,7 @@ export default function GroupDetailPage() {
         <div className="mb-4">
           <div className="flex justify-between items-start mb-3">
             <div>
-              <Link to="/groups" className="text-orange-500 hover:text-orange-400 mb-2 inline-block font-bold-sport text-xs transition-colors">
+              <Link to="/groups" className="text-orange-500 hover:text-orange-400 mb-2 inline-block font-bold-sport text-sm transition-colors">
                 ← Retour aux groupes
               </Link>
               <h1 className="font-sport text-4xl text-white mb-1">{group?.name}</h1>
@@ -458,15 +670,25 @@ export default function GroupDetailPage() {
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
                 <h2 className="font-sport text-3xl text-white">Matchs</h2>
-                {group?.ffvbSourceUrl && (
-                  <button
-                    onClick={handleSyncFFVB}
-                    disabled={syncing}
-                    className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold-sport shadow-lg shadow-orange-500/30 transition-all duration-200"
-                  >
-                    {syncing ? 'Synchronisation...' : 'Sync FFVB'}
-                  </button>
-                )}
+                <div className="flex items-center space-x-3">
+                  {group?.ffvbSourceUrl && (
+                    <button
+                      onClick={() => setShowTeamRanking(!showTeamRanking)}
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 font-bold-sport shadow-lg shadow-blue-500/30 transition-all duration-200 text-sm"
+                    >
+                      {showTeamRanking ? 'Masquer' : 'Afficher'} le classement
+                    </button>
+                  )}
+                  {group?.ffvbSourceUrl && (
+                    <button
+                      onClick={handleSyncFFVB}
+                      disabled={syncing}
+                      className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold-sport shadow-lg shadow-orange-500/30 transition-all duration-200"
+                    >
+                      {syncing ? 'Synchronisation...' : 'Sync FFVB'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Filtres et tri */}
@@ -515,6 +737,19 @@ export default function GroupDetailPage() {
                         <option value="FINISHED">Terminé</option>
                         <option value="CANCELED">Annulé</option>
                       </select>
+                    </div>
+
+                    {/* Filtre par pronostics */}
+                    <div className="flex items-center space-x-2">
+                      <label className="text-gray-400 text-xs font-bold-sport flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={filterHasPredictions}
+                          onChange={(e) => setFilterHasPredictions(e.target.checked)}
+                          className="w-4 h-4 text-orange-500 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
+                        />
+                        <span>Avec pronostics</span>
+                      </label>
                     </div>
 
                     {/* Bouton pour réinitialiser les filtres */}
@@ -655,23 +890,109 @@ export default function GroupDetailPage() {
 
                     {/* Pronostics */}
                     <div className="mb-4 pb-4 border-b border-gray-700">
-                      <h4 className="font-bold-sport text-white mb-3">Pronostics:</h4>
-                      {match.predictions.length === 0 ? (
-                        <p className="text-gray-500 text-sm">Aucun pronostic</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {match.predictions.map((prediction) => (
-                            <div key={prediction.id} className="flex justify-between items-center bg-gray-700 rounded-lg p-2">
-                              <span className="text-gray-300 text-sm font-bold-sport">
-                                {prediction.user.pseudo}: {prediction.predictedHome}-{prediction.predictedAway}
-                              </span>
-                              {prediction.pointsAwarded !== undefined && (
-                                <span className="font-bold-sport text-green-400 text-lg">
-                                  +{prediction.pointsAwarded} pts
-                                </span>
-                              )}
-                            </div>
-                          ))}
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center space-x-2">
+                          <h4 className="font-bold-sport text-white">Pronostics:</h4>
+                          {!showPredictionsDetails[match.id] && match.predictions.length > 0 && (
+                            <span className="text-orange-400 font-bold-sport text-base">
+                              <span className="font-bold text-lg">{match.predictions.length}</span> pronostic{match.predictions.length > 1 ? 's' : ''} disponible{match.predictions.length > 1 ? 's' : ''}
+                            </span>
+                          )}
+                          {match.predictions.length === 0 && (
+                            <span className="text-gray-500 text-sm">Aucun pronostic</span>
+                          )}
+                        </div>
+                        {match.predictions.length > 0 && (
+                          <button
+                            onClick={() => setShowPredictionsDetails(prev => ({
+                              ...prev,
+                              [match.id]: !prev[match.id]
+                            }))}
+                            className="text-xs text-orange-400 hover:text-orange-300 font-bold-sport transition-colors flex items-center space-x-1"
+                          >
+                            <span>{showPredictionsDetails[match.id] ? 'Masquer' : 'Afficher'} les pronostics</span>
+                            <svg 
+                              className={`w-4 h-4 transition-transform ${showPredictionsDetails[match.id] ? 'rotate-180' : ''}`}
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                      {showPredictionsDetails[match.id] && match.predictions.length > 0 && (
+                        <div className="space-y-3">
+                          {match.predictions.map((prediction) => {
+                            // Calculer le nombre de sets attendus selon le pronostic
+                            const totalSets = prediction.predictedHome + prediction.predictedAway;
+                            
+                            // Filtrer les scores détaillés pour ne garder que ceux qui ont été remplis (pas 0-0)
+                            const filledSetScores = prediction.predictedSetScores?.filter(
+                              (score) => score.home > 0 || score.away > 0
+                            ) || [];
+                            
+                            // Limiter aux sets attendus selon le pronostic
+                            const displayedSetScores = filledSetScores.slice(0, totalSets);
+                            
+                            return (
+                              <div key={prediction.id} className="bg-gray-700 rounded-lg p-3">
+                                <div className="flex justify-between items-start mb-2">
+                                  <div className="flex items-center space-x-2">
+                                    {prediction.user.avatar ? (
+                                      <img
+                                        src={prediction.user.avatar}
+                                        alt={prediction.user.pseudo || prediction.user.firstName || 'Avatar'}
+                                        className="w-6 h-6 rounded-full border border-gray-600 object-cover"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center text-white text-xs font-bold-sport">
+                                        {(prediction.user.pseudo || prediction.user.firstName || 'U')[0].toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span className="text-gray-300 text-sm font-bold-sport">
+                                      {prediction.user.pseudo || prediction.user.firstName}: {prediction.predictedHome}-{prediction.predictedAway}
+                                    </span>
+                                    {prediction.isRisky && (
+                                      <span className="text-orange-500 text-sm" title="Pronostic risqué">
+                                        🔥
+                                      </span>
+                                    )}
+                                  </div>
+                                  {prediction.pointsAwarded !== undefined && prediction.pointsAwarded > 0 && (
+                                    <span className="font-bold-sport text-green-400 text-sm">
+                                      +{prediction.pointsAwarded} pts
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {/* Scores détaillés par set */}
+                                {displayedSetScores.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t border-gray-600">
+                                    <div className="flex flex-wrap gap-2">
+                                      {displayedSetScores.map((setScore, index) => {
+                                        const homeWon = setScore.home > setScore.away;
+                                        return (
+                                          <div key={index} className="bg-white rounded-lg p-1.5 min-w-[45px] text-center">
+                                            <div className="text-xs text-gray-500 mb-0.5 font-bold-sport">SET {index + 1}</div>
+                                            <div className="text-xs font-bold-sport">
+                                              <span className={homeWon ? 'text-orange-500' : 'text-black'}>{setScore.home}</span>
+                                              <span className="text-gray-400 mx-0.5">-</span>
+                                              <span className={!homeWon ? 'text-orange-500' : 'text-black'}>{setScore.away}</span>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -708,7 +1029,7 @@ export default function GroupDetailPage() {
                     ) : match.isLocked && match.status === 'SCHEDULED' ? (
                       <div>
                         <p className="text-sm text-gray-500 italic mb-2">
-                          Les pronostics sont fermés (fermeture 24h avant le début du match)
+                          Les pronostics sont fermés (fermeture à l'heure du match)
                         </p>
                         {(() => {
                           const userPrediction = match.predictions.find(p => p.user.id === user?.id);
@@ -730,45 +1051,174 @@ export default function GroupDetailPage() {
           {/* Sidebar */}
           <div>
             <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 mb-6">
-              <h3 className="font-sport text-2xl text-white mb-4">Membres</h3>
-              <div className="space-y-3">
-                {group?.members.map((member) => (
-                  <div key={member.user.id} className="flex justify-between items-center bg-gray-700 rounded-lg p-3">
-                    <span className="text-gray-300 font-bold-sport">{member.user.pseudo}</span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold-sport ${
-                      member.role === 'OWNER' ? 'bg-purple-600 text-white' :
-                      member.role === 'ADMIN' ? 'bg-blue-600 text-white' :
-                      'bg-gray-600 text-gray-300'
-                    }`}>
-                      {member.role === 'OWNER' ? 'Propriétaire' :
-                       member.role === 'ADMIN' ? 'Admin' : 'Membre'}
-                    </span>
+              <h3 className="font-sport text-2xl text-white mb-4">Classement</h3>
+              <div className="space-y-2">
+                {groupRanking.length > 0 ? (
+                  groupRanking.map((entry) => {
+                    const isLeader = entry.user.id === group?.leaderId;
+                    const getPositionLabel = (position: number) => {
+                      if (position === 1) return '1er';
+                      if (position === 2) return '2e';
+                      if (position === 3) return '3e';
+                      return null;
+                    };
+                    const positionLabel = getPositionLabel(entry.position);
+                    
+                    return (
+                      <div
+                        key={entry.user.id}
+                        className={`flex items-center justify-between bg-gray-700 rounded-lg p-3 ${
+                          isLeader ? 'border-2 border-yellow-500 shadow-lg shadow-yellow-500/30' : ''
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3 flex-1">
+                          {/* Position */}
+                          {positionLabel && (
+                            <span className="text-orange-400 font-bold-sport text-sm min-w-[30px]">
+                              {positionLabel}
+                            </span>
+                          )}
+                          {!positionLabel && (
+                            <span className="text-gray-500 font-bold-sport text-sm min-w-[30px]">
+                              {entry.position}e
+                            </span>
+                          )}
+                          
+                          {/* Avatar */}
+                          {entry.user.avatar ? (
+                            <img
+                              src={entry.user.avatar}
+                              alt={entry.user.pseudo || entry.user.firstName || 'Avatar'}
+                              className="w-8 h-8 rounded-full border border-gray-600 object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white text-xs font-bold-sport">
+                              {(entry.user.pseudo || entry.user.firstName || 'U')[0].toUpperCase()}
+                            </div>
+                          )}
+                          
+                          {/* Nom */}
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-gray-300 font-bold-sport text-sm">
+                                {entry.user.pseudo || entry.user.firstName || 'Utilisateur'}
+                              </span>
+                              {isLeader && (
+                                <span className="text-yellow-500 text-xs" title="Leader du groupe">
+                                  👑
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Points */}
+                          <span className="text-orange-400 font-bold-sport text-sm">
+                            {entry.totalPoints} pts
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-gray-500 text-sm text-center py-4">
+                    Aucun classement disponible
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6">
-              <h3 className="font-sport text-2xl text-white mb-4">Actions</h3>
-              <div className="space-y-3">
-                <Link
-                  to={`/groups/${groupId}/ranking`}
-                  className="block w-full bg-gradient-to-r from-green-600 to-green-700 text-white px-4 py-3 rounded-lg hover:from-green-700 hover:to-green-800 text-center font-bold-sport shadow-lg shadow-green-500/30 transition-all duration-200"
-                >
-                  Voir le classement
-                </Link>
-                {group?.ffvbSourceUrl && (
-                  <a
-                    href={group.ffvbSourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 text-center font-bold-sport shadow-lg shadow-blue-500/30 transition-all duration-200"
-                  >
-                    Voir sur FFVB
-                  </a>
                 )}
               </div>
             </div>
+
+            {showTeamRanking && (
+              <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-sport text-2xl text-white">
+                    {isCoupe ? 'Équipes en lice' : 'Classement'}
+                  </h3>
+                  <div className="flex items-center space-x-2">
+                    {group?.ffvbSourceUrl && (
+                      <a
+                        href={group.ffvbSourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 transition-colors"
+                        title="Voir sur FFVB"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    )}
+                    <button
+                      onClick={() => setShowTeamRanking(false)}
+                      className="text-gray-400 hover:text-gray-300 transition-colors"
+                      title="Fermer"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {isCoupe ? (
+                  // Pour une coupe, afficher juste la liste des équipes encore en lice
+                  <div className="space-y-2">
+                    {teamRanking.length > 0 ? (
+                      teamRanking.map((team: any) => (
+                        <div key={team.name} className="bg-gray-700 rounded-lg p-3">
+                          <span className="text-gray-300 font-bold-sport text-sm">{team.name}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-gray-500 text-sm text-center py-4">
+                        Aucune équipe en lice pour le moment
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  // Pour un championnat, afficher le classement complet
+                  <div className="space-y-2">
+                    {teamRanking.length > 0 ? (
+                      <>
+                        {/* En-tête du tableau */}
+                        <div className="grid grid-cols-12 gap-2 text-xs text-gray-400 font-bold-sport mb-2 pb-2 border-b border-gray-700">
+                          <div className="col-span-1">Pos</div>
+                          <div className="col-span-7">Équipe</div>
+                          <div className="col-span-2 text-center">Pts</div>
+                          <div className="col-span-2 text-center">MJ</div>
+                        </div>
+                        
+                        {/* Lignes du classement */}
+                        {teamRanking.map((team: any) => (
+                          <div key={team.name} className="bg-gray-700 rounded-lg p-2">
+                            <div className="grid grid-cols-12 gap-2 items-center text-sm">
+                              <div className="col-span-1 text-orange-400 font-bold-sport">
+                                {team.position}
+                              </div>
+                              <div className="col-span-7 text-gray-300 font-bold-sport truncate">
+                                {team.name}
+                              </div>
+                              <div className="col-span-2 text-orange-400 font-bold-sport text-center">
+                                {team.points}
+                              </div>
+                              <div className="col-span-2 text-gray-400 font-bold-sport text-center">
+                                {team.matchesPlayed}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <div className="text-gray-500 text-sm text-center py-4">
+                        Aucun classement disponible pour le moment
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

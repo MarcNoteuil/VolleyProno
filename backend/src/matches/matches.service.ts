@@ -29,7 +29,9 @@ export class MatchesService {
             user: {
               select: {
                 id: true,
-                pseudo: true
+                pseudo: true,
+                firstName: true,
+                avatar: true
               }
             }
           }
@@ -71,7 +73,9 @@ export class MatchesService {
             user: {
               select: {
                 id: true,
-                pseudo: true
+                pseudo: true,
+                firstName: true,
+                avatar: true
               }
             }
           }
@@ -79,11 +83,10 @@ export class MatchesService {
       }
     });
 
-    // Calculer dynamiquement isLocked pour chaque match (24h avant le début)
+    // Calculer dynamiquement isLocked pour chaque match (à l'heure exacte du match)
     const now = new Date();
     return matches.map(match => {
-      const lockTime = new Date(match.startAt.getTime() - 24 * 60 * 60 * 1000); // 24h avant
-      const isLockedDynamically = now >= lockTime || match.isLocked;
+      const isLockedDynamically = now >= match.startAt || match.isLocked;
       
       return {
         ...match,
@@ -105,6 +108,18 @@ export class MatchesService {
               }
             }
           }
+        },
+        predictions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                pseudo: true,
+                firstName: true,
+                avatar: true
+              }
+            }
+          }
         }
       }
     });
@@ -118,10 +133,9 @@ export class MatchesService {
       throw new Error('Vous n\'avez pas accès à ce match');
     }
 
-    // Calculer dynamiquement si le match est verrouillé (24h avant le début)
+    // Calculer dynamiquement si le match est verrouillé (à l'heure exacte du match)
     const now = new Date();
-    const lockTime = new Date(match.startAt.getTime() - 24 * 60 * 60 * 1000); // 24h avant
-    const isLockedDynamically = now >= lockTime || match.isLocked;
+    const isLockedDynamically = now >= match.startAt || match.isLocked;
 
     // Retourner le match avec isLocked calculé dynamiquement
     return {
@@ -141,7 +155,9 @@ export class MatchesService {
             user: {
               select: {
                 id: true,
-                pseudo: true
+                pseudo: true,
+                firstName: true,
+                avatar: true
               }
             }
           }
@@ -154,12 +170,11 @@ export class MatchesService {
 
   async lockMatches24hBefore() {
     const now = new Date();
-    const lockTime = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24h dans le futur
 
     const matches = await prisma.match.findMany({
       where: {
         startAt: {
-          lte: lockTime
+          lte: now // Matchs qui ont commencé ou sont en cours
         },
         isLocked: false
       }

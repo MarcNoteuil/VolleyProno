@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import PointsNotificationModal from '../components/PointsNotificationModal';
 
 interface Stats {
   totalPredictions: number;
@@ -29,9 +30,18 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [upcomingMatches, setUpcomingMatches] = useState<UpcomingMatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPointsModal, setShowPointsModal] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Afficher la modal de points si l'utilisateur vient de se connecter
+    // On vérifie si on vient de la page de login (via state ou localStorage)
+    const justLoggedIn = sessionStorage.getItem('justLoggedIn') === 'true';
+    if (justLoggedIn) {
+      setShowPointsModal(true);
+      sessionStorage.removeItem('justLoggedIn');
+    }
   }, []);
 
   const fetchDashboardData = async () => {
@@ -133,7 +143,11 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">
-            Bienvenue, {user?.pseudo} !
+            {user?.pseudo 
+              ? `Bienvenue, ${user.pseudo} !`
+              : user?.firstName 
+              ? `Bienvenue, ${user.firstName} !`
+              : 'Bienvenue !'}
           </h1>
           <p className="text-gray-400 font-bold-sport text-sm">Votre tableau de bord</p>
         </div>
@@ -279,6 +293,11 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Modal de notification des points */}
+      {showPointsModal && (
+        <PointsNotificationModal onClose={() => setShowPointsModal(false)} />
+      )}
     </div>
   );
 }

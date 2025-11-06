@@ -221,4 +221,23 @@ export class PredictionsController {
       });
     }
   }
+
+  async getPredictionsSinceLastLogin(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.userId!;
+      
+      const result = await this.predictionsService.getPredictionsSinceLastLogin(userId);
+      
+      res.json({
+        code: 'SUCCESS',
+        message: 'Pronostics récupérés',
+        data: result
+      });
+    } catch (error) {
+      res.status(400).json({
+        code: 'ERROR',
+        message: error instanceof Error ? error.message : 'Erreur lors de la récupération'
+      });
+    }
+  }
 }

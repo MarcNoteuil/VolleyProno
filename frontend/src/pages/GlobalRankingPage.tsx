@@ -5,6 +5,8 @@ interface GlobalRankingEntry {
   user: {
     id: string;
     pseudo: string;
+    firstName?: string | null;
+    avatar?: string | null;
   };
   totalPoints: number;
   position: number;
@@ -42,6 +44,13 @@ export default function GlobalRankingPage() {
       default:
         return null;
     }
+  };
+
+  const getPositionLabel = (position: number) => {
+    if (position === 1) return '1er';
+    if (position === 2) return '2e';
+    if (position === 3) return '3e';
+    return `${position}e`;
   };
 
   const getMedalColor = (position: number) => {
@@ -120,12 +129,28 @@ export default function GlobalRankingPage() {
                             </span>
                           )}
                         </div>
-                        <div>
-                          <h3 className="font-team text-2xl text-white mb-1">
-                            {entry.user.pseudo}
-                          </h3>
-                          <div className="text-sm text-gray-200 font-bold-sport">
-                            Position {entry.position}
+                        <div className="flex items-center space-x-3">
+                          {entry.user.avatar ? (
+                            <img
+                              src={entry.user.avatar}
+                              alt={entry.user.pseudo || entry.user.firstName || 'Avatar'}
+                              className="w-12 h-12 rounded-full border-2 border-gray-600 object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-12 h-12 rounded-full bg-gray-600 flex items-center justify-center text-white text-lg font-bold-sport">
+                              {(entry.user.pseudo || entry.user.firstName || 'U')[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="font-team text-2xl text-white mb-1">
+                              {entry.user.pseudo || entry.user.firstName}
+                            </h3>
+                            <div className="text-sm text-gray-200 font-bold-sport">
+                              {getPositionLabel(entry.position)}
+                            </div>
                           </div>
                         </div>
                       </div>

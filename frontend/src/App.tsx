@@ -15,6 +15,7 @@ import MesPronosPage from './pages/MesPronosPage';
 import DashboardPage from './pages/DashboardPage';
 import UpcomingMatchesPage from './pages/UpcomingMatchesPage';
 import GlobalRankingPage from './pages/GlobalRankingPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   const { isAuthenticated, initializeAuth } = useAuthStore();
@@ -58,6 +59,7 @@ function App() {
             <Route path="/mes-pronos" element={<MesPronosPage />} />
             <Route path="/matchs-a-venir" element={<UpcomingMatchesPage />} />
             <Route path="/classement-global" element={<GlobalRankingPage />} />
+            <Route path="/profil" element={<ProfilePage />} />
           </Route>
         </Routes>
       </div>

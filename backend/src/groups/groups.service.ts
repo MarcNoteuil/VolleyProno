@@ -56,7 +56,9 @@ export class GroupsService {
             user: {
               select: {
                 id: true,
-                pseudo: true
+                pseudo: true,
+                firstName: true,
+                avatar: true
               }
             }
           }
@@ -162,7 +164,9 @@ export class GroupsService {
             user: {
               select: {
                 id: true,
-                pseudo: true
+                pseudo: true,
+                firstName: true,
+                avatar: true
               }
             }
           }
@@ -210,7 +214,9 @@ export class GroupsService {
             user: {
               select: {
                 id: true,
-                pseudo: true
+                pseudo: true,
+                firstName: true,
+                avatar: true
               }
             }
           }

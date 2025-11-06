@@ -18,6 +18,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
+      // Marquer que l'utilisateur vient de se connecter pour afficher la modal de points
+      sessionStorage.setItem('justLoggedIn', 'true');
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Erreur de connexion');

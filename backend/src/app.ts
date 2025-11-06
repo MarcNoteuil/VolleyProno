@@ -11,6 +11,7 @@ import matchesRoutes from './matches/matches.routes';
 import predictionsRoutes from './predictions/predictions.routes';
 import rankingRoutes from './ranking/ranking.routes';
 import adminRoutes from './admin/admin.routes';
+import usersRoutes from './users/users.routes';
 
 const app = express();
 
@@ -51,7 +52,8 @@ const generalLimiter = rateLimit({
 // Appliquer le rate limiting spécifique pour l'authentification
 app.use('/api/auth', authLimiter);
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Augmenter la limite pour les images base64
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev'));
 
 // Health check
@@ -66,6 +68,7 @@ app.use('/api/matches', matchesRoutes);
 app.use('/api/predictions', predictionsRoutes);
 app.use('/api/ranking', rankingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/users', usersRoutes);
 
 // Route de test pour le scraper FFVB (sans authentification)
 app.post('/api/test-scraper', (req, res) => {
