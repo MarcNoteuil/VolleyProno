@@ -58,7 +58,19 @@ export const useAuthStore = create<AuthStore>()(
           });
         } catch (error: any) {
           set({ isLoading: false });
-          throw new Error(error.response?.data?.message || 'Erreur de connexion');
+          
+          // Extraire le message d'erreur de la réponse
+          let errorMessage = 'Email ou mot de passe incorrect';
+          if (error.response?.data?.message) {
+            errorMessage = error.response.data.message;
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          // Créer une nouvelle erreur avec le message pour qu'elle soit propagée
+          const loginError = new Error(errorMessage);
+          (loginError as any).response = error.response;
+          throw loginError;
         }
       },
 
@@ -152,6 +164,15 @@ export const useAuthStore = create<AuthStore>()(
           isAuthenticated: state.isAuthenticated,
         };
         return persisted as AuthStore;
+      },
+      onRehydrateStorage: () => (state) => {
+        // Après la réhydratation, synchroniser isAuthenticated avec les données présentes
+        if (state) {
+          const hasAuth = !!(state.accessToken && state.user);
+          if (hasAuth !== state.isAuthenticated) {
+            state.isAuthenticated = hasAuth;
+          }
+        }
       },
     }
   )

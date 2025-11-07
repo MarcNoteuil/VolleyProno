@@ -483,32 +483,49 @@ export class PredictionsService {
       let points = 0;
       const isRisky = prediction.isRisky || false;
 
+      // Calculer le bonus score détaillé
+      let bonusDetailedSets = 0;
+      let allSetsExact = false;
+      if (prediction.predictedSetScores && actualSetScores) {
+        const predictedScores = prediction.predictedSetScores as Array<{ home: number; away: number }>;
+        
+        // Compter les sets exacts en comparant set par set (set 1 avec set 1, set 2 avec set 2, etc.)
+        const minLength = Math.min(predictedScores.length, actualSetScores.length);
+        let exactSetsCount = 0;
+        
+        for (let index = 0; index < minLength; index++) {
+          const predictedSet = predictedScores[index];
+          const actualSet = actualSetScores[index];
+          // Comparer set 1 avec set 1, set 2 avec set 2, etc. (pas set 1 avec set 2)
+          if (predictedSet.home === actualSet.home && predictedSet.away === actualSet.away) {
+            exactSetsCount++;
+          }
+        }
+        
+        bonusDetailedSets = exactSetsCount;
+        
+        // Vérifier si TOUS les sets sont exacts (même nombre de sets et tous identiques)
+        allSetsExact = (predictedScores.length === actualSetScores.length) && 
+                       (exactSetsCount === predictedScores.length) && 
+                       (exactSetsCount === actualSetScores.length);
+      }
+
       // Score exact (sets)
       if (prediction.predictedHome === actualHome && prediction.predictedAway === actualAway) {
         points = 3;
         
-        // Bonus +2 si les scores de sets sont exacts (bon ordre et bonnes équipes)
-        // Seulement si le score exact est atteint
-        if (prediction.predictedSetScores && actualSetScores) {
-          const predictedScores = prediction.predictedSetScores as Array<{ home: number; away: number }>;
-          
-          // Vérifier que le nombre de sets correspond
-          if (predictedScores.length === actualSetScores.length) {
-            // Vérifier que tous les scores de sets sont exacts (bon ordre et bonnes équipes)
-            const allSetsExact = predictedScores.every((predictedSet, index) => {
-              const actualSet = actualSetScores[index];
-              return predictedSet.home === actualSet.home && predictedSet.away === actualSet.away;
-            });
-            
-            if (allSetsExact) {
-              points += 2; // Bonus de +2 points pour score exact par set
-            }
-          }
-        }
-
-        // Mode risqué : double les points si correct
         if (isRisky) {
-          points = points * 2;
+          // Mode risqué : si TOUT est exact (score + tous les sets), le bonus rentre dans la parenthèse
+          if (allSetsExact && bonusDetailedSets > 0) {
+            // (score exact + bonus sets) × 2
+            points = (points + bonusDetailedSets) * 2;
+          } else {
+            // (score exact × 2) + bonus sets
+            points = (points * 2) + bonusDetailedSets;
+          }
+        } else {
+          // Sans mode risqué : score exact + bonus sets
+          points += bonusDetailedSets;
         }
       }
       // Bon vainqueur (seulement si le score exact n'est pas atteint)
@@ -517,16 +534,26 @@ export class PredictionsService {
         (actualAway > actualHome && prediction.predictedAway > prediction.predictedHome)
       ) {
         points = 1;
-
-        // Mode risqué : double les points si correct
+        
         if (isRisky) {
-          points = points * 2;
+          // Mode risqué : si le score exact n'est pas bon, on gagne 0 pts (pas de multiplication)
+          points = 0;
         }
+        
+        // Le bonus score détaillé s'ajoute toujours (hors de la multiplication risquée)
+        points += bonusDetailedSets;
       }
       // Sinon 0 points (pas de points pour différence de sets seule)
-      // Mode risqué : -2 points si incorrect
-      else if (isRisky) {
-        points = -2;
+      // Mode risqué : -2 points si le vainqueur est incorrect
+      else {
+        if (isRisky) {
+          points = -2; // L'équipe désignée gagnante a perdu
+        } else {
+          points = 0;
+        }
+        
+        // Le bonus score détaillé s'ajoute toujours (même en cas de défaite)
+        points += bonusDetailedSets;
       }
 
       return prisma.prediction.update({
@@ -656,7 +683,7 @@ export class PredictionsService {
         pointsAwarded: { not: null },
         match: {
           status: 'FINISHED',
-          updatedAt: { gte: sevenDaysAgo }
+          scrapedAt: { gte: sevenDaysAgo }
         }
       },
       include: {

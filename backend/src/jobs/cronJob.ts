@@ -1,12 +1,12 @@
 import cron from 'node-cron';
 import { prisma } from '../db/prisma';
 import { FFVBScraper } from '../utils/ffvbScraper';
-import { PointsCalculator } from '../utils/pointsCalculator';
+import { PredictionsService } from '../predictions/predictions.service';
 import logger from '../config/logger';
 
 export class CronJobManager {
   private ffvbScraper = new FFVBScraper();
-  private pointsCalculator = new PointsCalculator();
+  private predictionsService = new PredictionsService();
 
   /**
    * Démarre tous les jobs cron
@@ -19,38 +19,40 @@ export class CronJobManager {
   }
 
   /**
-   * Job pour verrouiller les matchs à l'heure exacte du début
+   * Job pour verrouiller les matchs et mettre le statut à IN_PROGRESS à l'heure exacte du début
    * Exécuté toutes les heures
    */
   private startLockMatchesJob() {
     cron.schedule('0 * * * *', async () => {
       try {
-        logger.info('Début du job de verrouillage des matchs');
+        logger.info('Début du job de verrouillage et mise à jour du statut des matchs');
         
         const now = new Date();
 
-        const matches = await prisma.match.findMany({
+        // Trouver les matchs qui doivent être verrouillés et passer en IN_PROGRESS
+        const matchesToUpdate = await prisma.match.findMany({
           where: {
             startAt: {
               lte: now // Matchs qui ont commencé ou sont en cours
             },
-            isLocked: false
+            status: 'SCHEDULED' // Seulement les matchs programmés (pas encore terminés ou annulés)
           }
         });
 
-        if (matches.length > 0) {
-          const updatePromises = matches.map(match =>
+        if (matchesToUpdate.length > 0) {
+          const updatePromises = matchesToUpdate.map(match =>
             prisma.match.update({
               where: { id: match.id },
               data: {
                 isLocked: true,
-                lockedAt: now
+                lockedAt: now,
+                status: 'IN_PROGRESS' // Passer en "En cours" dès le début du match
               }
             })
           );
 
           await Promise.all(updatePromises);
-          logger.info(`${matches.length} matchs verrouillés`);
+          logger.info(`${matchesToUpdate.length} matchs verrouillés et mis à jour en IN_PROGRESS`);
         } else {
           logger.info('Aucun match à verrouiller');
         }
@@ -62,10 +64,10 @@ export class CronJobManager {
 
   /**
    * Job pour synchroniser les matchs FFVB
-   * Exécuté toutes les 2 heures
+   * Exécuté toutes les heures
    */
   private startSyncFFVBJob() {
-    cron.schedule('0 */2 * * *', async () => {
+    cron.schedule('0 * * * *', async () => {
       try {
         logger.info('Début de la synchronisation FFVB');
         
@@ -127,18 +129,12 @@ export class CronJobManager {
         for (const match of finishedMatches) {
           if (match.predictions.length === 0) continue;
 
-          for (const prediction of match.predictions) {
-            const result = this.pointsCalculator.calculatePoints(
-              prediction.predictedHome,
-              prediction.predictedAway,
-              match.setsHome!,
-              match.setsAway!
-            );
-
-            await prisma.prediction.update({
-              where: { id: prediction.id },
-              data: { pointsAwarded: result.points }
-            });
+          try {
+            // Utiliser le service de prédictions qui prend en compte le mode risqué
+            await this.predictionsService.calculatePointsForMatch(match.id);
+            logger.info(`Points calculés pour le match ${match.id} (${match.predictions.length} prédictions)`);
+          } catch (error) {
+            logger.error(`Erreur lors du calcul des points pour le match ${match.id}:`, error);
           }
         }
 
@@ -171,6 +167,11 @@ export class CronJobManager {
     });
 
     if (existingMatch) {
+      // Vérifier si le match vient d'être terminé (passage de SCHEDULED/IN_PROGRESS à FINISHED)
+      const wasFinished = existingMatch.status === 'FINISHED';
+      const isNowFinished = matchData.status === 'FINISHED';
+      const justFinished = !wasFinished && isNowFinished;
+      
       // Mettre à jour le match existant
       await prisma.match.update({
         where: { id: existingMatch.id },
@@ -182,6 +183,19 @@ export class CronJobManager {
           scrapedAt: new Date()
         }
       });
+      
+      // Si le match vient d'être terminé, calculer immédiatement les points
+      if (justFinished && matchData.setsHome !== undefined && matchData.setsAway !== undefined) {
+        try {
+          const { PredictionsService } = await import('../predictions/predictions.service');
+          const predictionsService = new PredictionsService();
+          await predictionsService.calculatePointsForMatch(existingMatch.id);
+          logger.info(`✅ Points calculés immédiatement pour le match ${existingMatch.id}`);
+        } catch (error) {
+          logger.error(`❌ Erreur lors du calcul des points pour le match ${existingMatch.id}:`, error);
+          // Ne pas faire échouer la synchronisation si le calcul des points échoue
+        }
+      }
     } else {
       // Créer un nouveau match
       await prisma.match.create({

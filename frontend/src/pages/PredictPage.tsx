@@ -617,10 +617,43 @@ export default function PredictPage() {
                 <div className="flex-1">
                   <label htmlFor="risky-mode" className="block text-sm font-bold-sport text-white cursor-pointer">
                     <span className="text-orange-400 font-sport text-lg">⚡ Mode Risqué</span>
+                    <span className="ml-2 relative group">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold cursor-help hover:bg-orange-500/30 transition-colors">?</span>
+                      <div className="absolute left-0 bottom-full mb-2 w-80 p-4 bg-gray-800 border border-orange-500 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                        <p className="text-sm text-orange-400 font-bold-sport mb-3">⚡ Mode Risqué - Règles :</p>
+                        
+                        <p className="text-xs text-white font-bold-sport mb-2">Si score exact (sets) correct :</p>
+                        <ul className="text-xs text-gray-300 space-y-1 mb-3 ml-2">
+                          <li>• <span className="text-orange-400">TOUT exact</span> (score + tous sets) : <span className="text-green-400">(3 + bonus) × 2</span></li>
+                          <li>• <span className="text-yellow-400">Sets différents</span> : <span className="text-green-400">(3 × 2) + bonus</span></li>
+                        </ul>
+                        
+                        <p className="text-xs text-white font-bold-sport mb-2">Si score exact incorrect :</p>
+                        <ul className="text-xs text-gray-300 space-y-1 mb-3 ml-2">
+                          <li>• Vainqueur correct : <span className="text-yellow-400">0 pts</span> + bonus sets</li>
+                          <li>• Vainqueur incorrect : <span className="text-red-400">-2 pts</span> + bonus sets</li>
+                        </ul>
+                        
+                        <p className="text-xs text-gray-400 italic border-t border-gray-700 pt-2 mt-2">
+                          💡 Le bonus (+1 pt par set exact) rentre dans la multiplication <span className="text-orange-400">SEULEMENT</span> si TOUT est parfait !
+                        </p>
+                        
+                        <p className="text-xs text-orange-400 mt-3 font-bold">Exemples :</p>
+                        <div className="text-xs text-gray-400 space-y-1">
+                          <p>• 3-0 exact + sets exacts = (3+3)×2 = <span className="text-green-400">12 pts</span></p>
+                          <p>• 3-0 exact + 1 set différent = (3×2)+2 = <span className="text-green-400">8 pts</span></p>
+                          <p>• 3-0 exact sans sets = 3×2 = <span className="text-green-400">6 pts</span></p>
+                          <p>• 3-1 (vainqueur OK) = 0 + bonus = <span className="text-yellow-400">2 pts</span></p>
+                          <p>• 2-3 (vainqueur faux) = -2 + bonus = <span className="text-red-400">-1 pt</span></p>
+                        </div>
+                      </div>
+                    </span>
                   </label>
                   <div className="mt-2 space-y-1 text-xs text-gray-300 font-bold-sport">
-                    <p>• Double vos points si votre pronostic est correct</p>
-                    <p>• <span className="text-red-400">-2 points</span> si votre pronostic est incorrect</p>
+                    <p>• Si score exact + tous sets exacts : (score + bonus) × 2</p>
+                    <p>• Si score exact mais sets différents : (score × 2) + bonus</p>
+                    <p>• Si vainqueur OK mais score incorrect : 0 + bonus</p>
+                    <p>• Si vainqueur incorrect : <span className="text-red-400">-2</span> + bonus</p>
                     <p className="text-gray-500">• Utilisable 1 fois par semaine par groupe</p>
                   </div>
                   {riskyCooldown && !riskyCooldown.canUse && riskyCooldown.nextAvailableDate && (
@@ -679,7 +712,7 @@ export default function PredictPage() {
                 )}
               </button>
               <p className="mt-2 text-xs text-gray-500 text-center">
-                {showDetailedScores ? 'Bonus +2 pts si les scores détaillés sont exacts' : 'Cliquez pour prédire les scores par set (optionnel)'}
+                {showDetailedScores ? 'Bonus +1 pt par set exact (set 1 avec set 1, set 2 avec set 2, etc.)' : 'Cliquez pour prédire les scores par set (optionnel)'}
               </p>
             </div>
 
@@ -695,7 +728,7 @@ export default function PredictPage() {
               return (
                 <div>
                   <label className="block text-sm font-bold-sport text-gray-300 mb-3">
-                    Scores détaillés par set - Bonus +2 pts si exact
+                    Scores détaillés par set - Bonus +1 pt par set exact
                   </label>
                   <div className={`grid gap-3 ${totalSets === 3 ? 'grid-cols-3' : totalSets === 4 ? 'grid-cols-4' : 'grid-cols-5'}`}>
                     {displayedSets.map((setScore, index) => {

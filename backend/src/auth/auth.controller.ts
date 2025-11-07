@@ -17,6 +17,15 @@ const refreshSchema = z.object({
   refreshToken: z.string()
 });
 
+const requestPasswordResetSchema = z.object({
+  email: z.string().email()
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string(),
+  password: z.string().min(6)
+});
+
 export class AuthController {
   private authService = new AuthService();
 
@@ -94,6 +103,58 @@ export class AuthController {
       res.status(401).json({
         code: 'ERROR',
         message: error instanceof Error ? error.message : 'Token invalide'
+      });
+    }
+  }
+
+  async requestPasswordReset(req: Request, res: Response) {
+    try {
+      const data = requestPasswordResetSchema.parse(req.body);
+      const result = await this.authService.requestPasswordReset(data.email);
+      
+      res.json({
+        code: 'SUCCESS',
+        message: result.message,
+        data: result
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          code: 'VALIDATION_ERROR',
+          message: 'Données invalides',
+          details: error.errors
+        });
+      }
+      
+      res.status(400).json({
+        code: 'ERROR',
+        message: error instanceof Error ? error.message : 'Erreur lors de la demande de réinitialisation'
+      });
+    }
+  }
+
+  async resetPassword(req: Request, res: Response) {
+    try {
+      const data = resetPasswordSchema.parse(req.body);
+      const result = await this.authService.resetPassword(data.token, data.password);
+      
+      res.json({
+        code: 'SUCCESS',
+        message: result.message,
+        data: result
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          code: 'VALIDATION_ERROR',
+          message: 'Données invalides',
+          details: error.errors
+        });
+      }
+      
+      res.status(400).json({
+        code: 'ERROR',
+        message: error instanceof Error ? error.message : 'Erreur lors de la réinitialisation du mot de passe'
       });
     }
   }

@@ -83,14 +83,22 @@ export class MatchesService {
       }
     });
 
-    // Calculer dynamiquement isLocked pour chaque match (à l'heure exacte du match)
+    // Calculer dynamiquement isLocked et status pour chaque match
     const now = new Date();
     return matches.map(match => {
       const isLockedDynamically = now >= match.startAt || match.isLocked;
       
+      // Si le match a commencé mais n'est pas encore terminé, passer en IN_PROGRESS
+      let statusDynamically = match.status;
+      if (match.status === 'SCHEDULED' && now >= match.startAt) {
+        // Le match a commencé, passer en IN_PROGRESS (sauf s'il est déjà terminé ou annulé)
+        statusDynamically = 'IN_PROGRESS';
+      }
+      
       return {
         ...match,
-        isLocked: isLockedDynamically
+        isLocked: isLockedDynamically,
+        status: statusDynamically
       };
     });
   }
@@ -133,14 +141,22 @@ export class MatchesService {
       throw new Error('Vous n\'avez pas accès à ce match');
     }
 
-    // Calculer dynamiquement si le match est verrouillé (à l'heure exacte du match)
+    // Calculer dynamiquement si le match est verrouillé et son statut
     const now = new Date();
     const isLockedDynamically = now >= match.startAt || match.isLocked;
+    
+    // Si le match a commencé mais n'est pas encore terminé, passer en IN_PROGRESS
+    let statusDynamically = match.status;
+    if (match.status === 'SCHEDULED' && now >= match.startAt) {
+      // Le match a commencé, passer en IN_PROGRESS (sauf s'il est déjà terminé ou annulé)
+      statusDynamically = 'IN_PROGRESS';
+    }
 
-    // Retourner le match avec isLocked calculé dynamiquement
+    // Retourner le match avec isLocked et status calculés dynamiquement
     return {
       ...match,
-      isLocked: isLockedDynamically
+      isLocked: isLockedDynamically,
+      status: statusDynamically
     };
   }
 
@@ -196,7 +212,7 @@ export class MatchesService {
   }
 
   async syncFFVBMatches(groupId: string, userId: string) {
-    // Vérifier que l'utilisateur est owner ou admin
+    // Vérifier que l'utilisateur est membre du groupe
     const membership = await prisma.groupMember.findUnique({
       where: {
         userId_groupId: {
@@ -206,10 +222,11 @@ export class MatchesService {
       }
     });
 
-    if (!membership || !['OWNER', 'ADMIN'].includes(membership.role)) {
-      throw new Error('Vous n\'avez pas les droits pour synchroniser les matchs');
+    if (!membership) {
+      throw new Error('Vous n\'êtes pas membre de ce groupe');
     }
 
+    // Récupérer le groupe avec le leaderId
     const group = await prisma.group.findUnique({
       where: { id: groupId }
     });
@@ -217,6 +234,8 @@ export class MatchesService {
     if (!group?.ffvbSourceUrl) {
       throw new Error('Aucune URL FFVB configurée pour ce groupe');
     }
+
+    // Tous les membres peuvent synchroniser leurs groupes
 
     // Utiliser le scraper FFVB pour récupérer les matchs
     const scraper = new FFVBScraper();
@@ -248,6 +267,11 @@ export class MatchesService {
       });
 
       if (existingMatch) {
+        // Vérifier si le match vient d'être terminé (passage de SCHEDULED/IN_PROGRESS à FINISHED)
+        const wasFinished = existingMatch.status === 'FINISHED';
+        const isNowFinished = matchData.status === 'FINISHED';
+        const justFinished = !wasFinished && isNowFinished;
+        
         // Mettre à jour le match existant
         await prisma.match.update({
           where: { id: existingMatch.id },
@@ -261,6 +285,19 @@ export class MatchesService {
             ...(matchData.ffvbMatchId && !existingMatch.ffvbMatchId ? { ffvbMatchId: matchData.ffvbMatchId } : {})
           }
         });
+        
+        // Si le match vient d'être terminé, calculer immédiatement les points
+        if (justFinished && matchData.setsHome !== undefined && matchData.setsAway !== undefined) {
+          try {
+            const predictionsService = new PredictionsService();
+            await predictionsService.calculatePointsForMatch(existingMatch.id);
+            console.log(`✅ Points calculés immédiatement pour le match ${existingMatch.id}`);
+          } catch (error) {
+            console.error(`❌ Erreur lors du calcul des points pour le match ${existingMatch.id}:`, error);
+            // Ne pas faire échouer la synchronisation si le calcul des points échoue
+          }
+        }
+        
         updated++;
       } else {
         // Créer un nouveau match

@@ -1,7 +1,9 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '../db/prisma';
 import { env } from '../config/env';
+import { EmailService } from '../utils/emailService';
 
 export interface RegisterData {
   email: string;
@@ -151,5 +153,122 @@ export class AuthService {
     } catch (error) {
       throw new Error('Token de rafraîchissement invalide');
     }
+  }
+
+  /**
+   * Demande une réinitialisation de mot de passe
+   */
+  async requestPasswordReset(email: string) {
+    // Trouver l'utilisateur
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    // Ne pas révéler si l'email existe ou non (sécurité)
+    if (!user) {
+      // On retourne true même si l'utilisateur n'existe pas pour ne pas révéler l'email
+      return { success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+    }
+
+    // Générer un token unique
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // Valide pendant 1 heure
+
+    // Sauvegarder le token dans la base de données
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        token: resetToken,
+        expiresAt,
+      }
+    });
+
+    // Envoyer l'email de réinitialisation
+    try {
+      // En mode développement, si SMTP n'est pas configuré, afficher le lien dans la console
+      if (env.NODE_ENV === 'development' && (!env.SMTP_USER || !env.SMTP_PASS)) {
+        const resetUrl = `${env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+        console.log('\n📧 ============================================');
+        console.log('📧 MODE DÉVELOPPEMENT - Email non envoyé');
+        console.log('📧 ============================================');
+        console.log(`📧 Email: ${user.email}`);
+        console.log(`📧 Pseudo: ${user.pseudo}`);
+        console.log(`📧 Lien de réinitialisation:`);
+        console.log(`📧 ${resetUrl}`);
+        console.log('📧 ============================================\n');
+        return { success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+      }
+
+      await EmailService.sendPasswordResetEmail(user.email, resetToken, user.pseudo);
+      return { success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+    } catch (error: any) {
+      // Supprimer le token si l'email n'a pas pu être envoyé
+      await prisma.passwordResetToken.deleteMany({
+        where: { token: resetToken }
+      });
+      
+      // En mode développement, afficher l'erreur détaillée
+      if (env.NODE_ENV === 'development') {
+        console.error('❌ Erreur lors de l\'envoi de l\'email:', error);
+        throw new Error(`Impossible d'envoyer l'email de réinitialisation: ${error.message || 'Vérifiez votre configuration SMTP'}`);
+      }
+      
+      throw new Error('Impossible d\'envoyer l\'email de réinitialisation. Vérifiez votre configuration SMTP.');
+    }
+  }
+
+  /**
+   * Réinitialise le mot de passe avec un token
+   */
+  async resetPassword(token: string, newPassword: string) {
+    // Trouver le token
+    const resetToken = await prisma.passwordResetToken.findUnique({
+      where: { token },
+      include: { user: true }
+    });
+
+    if (!resetToken) {
+      throw new Error('Token de réinitialisation invalide');
+    }
+
+    // Vérifier si le token a expiré
+    if (new Date() > resetToken.expiresAt) {
+      await prisma.passwordResetToken.delete({
+        where: { id: resetToken.id }
+      });
+      throw new Error('Le token de réinitialisation a expiré');
+    }
+
+    // Vérifier si le token a déjà été utilisé
+    if (resetToken.used) {
+      throw new Error('Ce token de réinitialisation a déjà été utilisé');
+    }
+
+    // Hasher le nouveau mot de passe
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    // Mettre à jour le mot de passe de l'utilisateur
+    await prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash }
+    });
+
+    // Marquer le token comme utilisé
+    await prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { used: true }
+    });
+
+    // Supprimer tous les autres tokens non utilisés pour cet utilisateur
+    await prisma.passwordResetToken.deleteMany({
+      where: {
+        userId: resetToken.userId,
+        used: false,
+        id: { not: resetToken.id }
+      }
+    });
+
+    return { success: true, message: 'Mot de passe réinitialisé avec succès' };
   }
 }

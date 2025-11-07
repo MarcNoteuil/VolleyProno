@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import app from './app';
 import { connectPrisma } from './db/prisma';
 import { CronJobManager } from './jobs/cronJob';
@@ -7,6 +8,15 @@ const port = process.env.PORT ? Number(process.env.PORT) : 4000;
 
 async function startServer() {
   try {
+    // Vérifier la configuration SMTP au démarrage
+    const { EmailService } = await import('./utils/emailService');
+    const smtpConfigured = await EmailService.verifyConnection();
+    if (smtpConfigured) {
+      logger.info('✅ Configuration SMTP validée');
+    } else {
+      logger.warn('⚠️ Configuration SMTP manquante ou invalide. Les emails ne seront pas envoyés.');
+    }
+    
     // Connexion à la base de données
     await connectPrisma();
     logger.info('Connexion à la base de données établie');
