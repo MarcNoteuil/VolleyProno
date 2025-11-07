@@ -36,6 +36,7 @@ node_modules/.cache/
 
 # Docker
 .dockerignore
+docker-compose.yml
 
 # Testing
 coverage/
