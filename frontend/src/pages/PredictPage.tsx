@@ -49,6 +49,7 @@ export default function PredictPage() {
   const [isRisky, setIsRisky] = useState(false);
   const [riskyCooldown, setRiskyCooldown] = useState<RiskyCooldown | null>(null);
   const [showDetailedScores, setShowDetailedScores] = useState(false);
+  const [showRiskyModal, setShowRiskyModal] = useState(false);
 
   useEffect(() => {
     if (matchId) {
@@ -524,13 +525,13 @@ export default function PredictPage() {
           <p className="text-gray-400">{formatDate(match.startAt)}</p>
         </div>
 
-        <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6">
+        <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-4 sm:p-6">
           {/* Header du match */}
           <div className="mb-6 pb-6 border-b border-gray-700">
-            <h2 className="font-team text-3xl text-white text-center mb-2">
-              <span className="text-orange-400">{match.homeTeam}</span>
-              <span className="mx-4 text-gray-500">VS</span>
-              <span className="text-orange-400">{match.awayTeam}</span>
+            <h2 className="font-team text-xl sm:text-2xl lg:text-3xl text-white text-center mb-2">
+              <span className="text-orange-400 break-words">{match.homeTeam}</span>
+              <span className="mx-2 sm:mx-4 text-gray-500">VS</span>
+              <span className="text-orange-400 break-words">{match.awayTeam}</span>
             </h2>
           </div>
 
@@ -540,8 +541,8 @@ export default function PredictPage() {
               <label className="block text-sm font-bold-sport text-gray-300 mb-4">
                 Score final (nombre de sets gagnés)
               </label>
-              <div className="flex items-center justify-center space-x-6">
-                <div className="flex-1">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                <div className="w-full sm:flex-1">
                   <label className="block text-xs text-gray-400 mb-2 font-bold-sport text-center">{match.homeTeam}</label>
                   <input
                     type="number"
@@ -559,12 +560,12 @@ export default function PredictPage() {
                         }
                       }
                     }}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-white text-center text-2xl font-bold-sport"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-white text-center text-xl sm:text-2xl font-bold-sport"
                     required
                   />
                 </div>
-                <div className="text-4xl font-sport text-orange-500">-</div>
-                <div className="flex-1">
+                <div className="text-3xl sm:text-4xl font-sport text-orange-500">-</div>
+                <div className="w-full sm:flex-1">
                   <label className="block text-xs text-gray-400 mb-2 font-bold-sport text-center">{match.awayTeam}</label>
                   <input
                     type="number"
@@ -582,7 +583,7 @@ export default function PredictPage() {
                         }
                       }
                     }}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-white text-center text-2xl font-bold-sport"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-white text-center text-xl sm:text-2xl font-bold-sport"
                     required
                   />
                 </div>
@@ -617,37 +618,14 @@ export default function PredictPage() {
                 <div className="flex-1">
                   <label htmlFor="risky-mode" className="block text-sm font-bold-sport text-white cursor-pointer">
                     <span className="text-orange-400 font-sport text-lg">⚡ Mode Risqué</span>
-                    <span className="ml-2 relative group">
-                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold cursor-help hover:bg-orange-500/30 transition-colors">?</span>
-                      <div className="absolute left-0 bottom-full mb-2 w-80 p-4 bg-gray-800 border border-orange-500 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                        <p className="text-sm text-orange-400 font-bold-sport mb-3">⚡ Mode Risqué - Règles :</p>
-                        
-                        <p className="text-xs text-white font-bold-sport mb-2">Si score exact (sets) correct :</p>
-                        <ul className="text-xs text-gray-300 space-y-1 mb-3 ml-2">
-                          <li>• <span className="text-orange-400">TOUT exact</span> (score + tous sets) : <span className="text-green-400">(3 + bonus) × 2</span></li>
-                          <li>• <span className="text-yellow-400">Sets différents</span> : <span className="text-green-400">(3 × 2) + bonus</span></li>
-                        </ul>
-                        
-                        <p className="text-xs text-white font-bold-sport mb-2">Si score exact incorrect :</p>
-                        <ul className="text-xs text-gray-300 space-y-1 mb-3 ml-2">
-                          <li>• Vainqueur correct : <span className="text-yellow-400">0 pts</span> + bonus sets</li>
-                          <li>• Vainqueur incorrect : <span className="text-red-400">-2 pts</span> + bonus sets</li>
-                        </ul>
-                        
-                        <p className="text-xs text-gray-400 italic border-t border-gray-700 pt-2 mt-2">
-                          💡 Le bonus (+1 pt par set exact) rentre dans la multiplication <span className="text-orange-400">SEULEMENT</span> si TOUT est parfait !
-                        </p>
-                        
-                        <p className="text-xs text-orange-400 mt-3 font-bold">Exemples :</p>
-                        <div className="text-xs text-gray-400 space-y-1">
-                          <p>• 3-0 exact + sets exacts = (3+3)×2 = <span className="text-green-400">12 pts</span></p>
-                          <p>• 3-0 exact + 1 set différent = (3×2)+2 = <span className="text-green-400">8 pts</span></p>
-                          <p>• 3-0 exact sans sets = 3×2 = <span className="text-green-400">6 pts</span></p>
-                          <p>• 3-1 (vainqueur OK) = 0 + bonus = <span className="text-yellow-400">2 pts</span></p>
-                          <p>• 2-3 (vainqueur faux) = -2 + bonus = <span className="text-red-400">-1 pt</span></p>
-                        </div>
-                      </div>
-                    </span>
+                    <span 
+                      className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 text-xs font-bold cursor-pointer hover:bg-orange-500/30 transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setShowRiskyModal(true);
+                      }}
+                    >?</span>
                   </label>
                   <div className="mt-2 space-y-1 text-xs text-gray-300 font-bold-sport">
                     <p>• Si score exact + tous sets exacts : (score + bonus) × 2</p>
@@ -730,7 +708,7 @@ export default function PredictPage() {
                   <label className="block text-sm font-bold-sport text-gray-300 mb-3">
                     Scores détaillés par set - Bonus +1 pt par set exact
                   </label>
-                  <div className={`grid gap-3 ${totalSets === 3 ? 'grid-cols-3' : totalSets === 4 ? 'grid-cols-4' : 'grid-cols-5'}`}>
+                  <div className={`grid gap-2 sm:gap-3 ${totalSets === 3 ? 'grid-cols-1 sm:grid-cols-3' : totalSets === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-5'}`}>
                     {displayedSets.map((setScore, index) => {
                       const isFifthSet = index === 4;
                       return (
@@ -822,8 +800,8 @@ export default function PredictPage() {
 
       {/* Modale de confirmation */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-orange-500 shadow-2xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-orange-500 shadow-2xl max-w-md w-full p-4 sm:p-6 my-4">
             <h2 className="text-2xl font-bold-sport text-orange-400 mb-4">Confirmer votre pronostic</h2>
             <p className="text-gray-300 mb-6">
               Voulez-vous vraiment enregistrer ce pronostic ?
@@ -893,8 +871,8 @@ export default function PredictPage() {
 
       {/* Modale de succès */}
       {showSuccessModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-green-500 shadow-2xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl border-2 border-green-500 shadow-2xl max-w-md w-full p-4 sm:p-6 my-4">
             <div className="text-center mb-6">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-green-500 rounded-full mb-4">
                 <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -920,6 +898,53 @@ export default function PredictPage() {
               >
                 Voir mes groupes
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal pour les explications du Mode Risqué */}
+      {showRiskyModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowRiskyModal(false)}>
+          <div className="bg-gray-800 rounded-2xl shadow-2xl border-2 border-orange-500 max-w-lg w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center z-10 rounded-t-2xl">
+              <h3 className="font-sport text-2xl text-orange-400">⚡ Mode Risqué - Règles</h3>
+              <button
+                onClick={() => setShowRiskyModal(false)}
+                className="text-gray-400 hover:text-gray-300 transition-colors p-2"
+                aria-label="Fermer"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-sm text-white font-bold-sport mb-4">Si score exact (sets) correct :</p>
+              <ul className="text-sm text-gray-300 space-y-2 mb-6 ml-4">
+                <li>• <span className="text-orange-400">TOUT exact</span> (score + tous sets) : <span className="text-green-400">(3 + bonus) × 2</span></li>
+                <li>• <span className="text-yellow-400">Sets différents</span> : <span className="text-green-400">(3 × 2) + bonus</span></li>
+              </ul>
+              
+              <p className="text-sm text-white font-bold-sport mb-4">Si score exact incorrect :</p>
+              <ul className="text-sm text-gray-300 space-y-2 mb-6 ml-4">
+                <li>• Vainqueur correct : <span className="text-yellow-400">0 pts</span> + bonus sets</li>
+                <li>• Vainqueur incorrect : <span className="text-red-400">-2 pts</span> + bonus sets</li>
+              </ul>
+              
+              <p className="text-sm text-gray-400 italic border-t border-gray-700 pt-4 mb-6">
+                💡 Le bonus (+1 pt par set exact) rentre dans la multiplication <span className="text-orange-400">SEULEMENT</span> si TOUT est parfait !
+              </p>
+              
+              <p className="text-sm text-orange-400 mb-3 font-bold">Exemples :</p>
+              <div className="text-sm text-gray-300 space-y-2 bg-gray-700/50 rounded-lg p-4">
+                <p>• 3-0 exact + sets exacts = (3+3)×2 = <span className="text-green-400">12 pts</span></p>
+                <p>• 3-0 exact + 1 set différent = (3×2)+2 = <span className="text-green-400">8 pts</span></p>
+                <p>• 3-0 exact sans sets = 3×2 = <span className="text-green-400">6 pts</span></p>
+                <p>• 3-1 (vainqueur OK) = 0 + bonus = <span className="text-yellow-400">2 pts</span></p>
+                <p>• 2-3 (vainqueur faux) = -2 + bonus = <span className="text-red-400">-1 pt</span></p>
+              </div>
             </div>
           </div>
         </div>

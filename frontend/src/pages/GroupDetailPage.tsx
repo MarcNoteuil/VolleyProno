@@ -87,7 +87,9 @@ export default function GroupDetailPage() {
     position: number;
   }>>([]);
   const [showTeamRanking, setShowTeamRanking] = useState(true);
+  const [showTeamRankingModal, setShowTeamRankingModal] = useState(false);
   const [showPredictionsDetails, setShowPredictionsDetails] = useState<Record<string, boolean>>({});
+  const [showFilters, setShowFilters] = useState(false);
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -602,7 +604,7 @@ export default function GroupDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <div className="flex justify-between items-start mb-3">
             <div>
@@ -664,7 +666,7 @@ export default function GroupDetailPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Liste des matchs */}
           <div className="lg:col-span-2">
             <div className="mb-6">
@@ -674,7 +676,7 @@ export default function GroupDetailPage() {
                   {group?.ffvbSourceUrl && (
                     <button
                       onClick={() => setShowTeamRanking(!showTeamRanking)}
-                      className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 font-bold-sport shadow-lg shadow-blue-500/30 transition-all duration-200 text-sm"
+                      className="hidden lg:block bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 font-bold-sport shadow-lg shadow-blue-500/30 transition-all duration-200 text-sm"
                     >
                       {showTeamRanking ? 'Masquer' : 'Afficher'} le classement
                     </button>
@@ -691,122 +693,141 @@ export default function GroupDetailPage() {
                 </div>
               </div>
 
-              {/* Filtres et tri */}
-              {matches.length > 0 && (
-                <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-4">
-                  <div className="flex flex-wrap items-center gap-4 mb-3">
-                    <span className="text-gray-300 font-bold-sport text-sm">Filtres:</span>
-                    
-                    {/* Filtre par date */}
-                    <div className="flex items-center space-x-2">
-                      <label className="text-gray-400 text-xs font-bold-sport">Date:</label>
-                      <input
-                        type="date"
-                        value={filterDate}
-                        onChange={(e) => setFilterDate(e.target.value)}
-                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      />
-                    </div>
-
-                    {/* Filtre par équipe */}
-                    <div className="flex items-center space-x-2">
-                      <label className="text-gray-400 text-xs font-bold-sport">Équipe:</label>
-                      <select
-                        value={filterTeam}
-                        onChange={(e) => setFilterTeam(e.target.value)}
-                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500 min-w-[150px]"
-                      >
-                        <option value="">Toutes les équipes</option>
-                        {allTeams.map(team => (
-                          <option key={team} value={team}>{team}</option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Filtre par statut */}
-                    <div className="flex items-center space-x-2">
-                      <label className="text-gray-400 text-xs font-bold-sport">Statut:</label>
-                      <select
-                        value={filterStatus}
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500"
-                      >
-                        <option value="">Tous les statuts</option>
-                        <option value="SCHEDULED">Programmé</option>
-                        <option value="IN_PROGRESS">En cours</option>
-                        <option value="FINISHED">Terminé</option>
-                        <option value="CANCELED">Annulé</option>
-                      </select>
-                    </div>
-
-                    {/* Filtre par pronostics */}
-                    <div className="flex items-center space-x-2">
-                      <label className="text-gray-400 text-xs font-bold-sport flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={filterHasPredictions}
-                          onChange={(e) => setFilterHasPredictions(e.target.checked)}
-                          className="w-4 h-4 text-orange-500 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
-                        />
-                        <span>Avec pronostics</span>
-                      </label>
-                    </div>
-
-                    {/* Bouton pour réinitialiser les filtres */}
-                    {activeFiltersCount > 0 && (
-                      <button
-                        onClick={clearFilters}
-                        className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-bold-sport transition-colors"
-                      >
-                        Réinitialiser ({activeFiltersCount})
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Tri */}
-                  <div className="flex items-center space-x-2 pt-3 border-t border-gray-700">
-                    <span className="text-gray-400 text-sm font-bold-sport">Trier par:</span>
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as 'date' | 'team' | 'status')}
-                      className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    >
-                      <option value="date">Date</option>
-                      <option value="team">Équipe</option>
-                      <option value="status">Statut</option>
-                    </select>
+              {matches.length === 0 ? (
+                <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
+                  <p className="text-gray-400 mb-4">Aucun match programmé</p>
+                  {group?.ffvbSourceUrl && (
                     <button
-                      onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                      className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-bold-sport transition-colors"
-                      title={sortOrder === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'}
+                      onClick={handleSyncFFVB}
+                      disabled={syncing}
+                      className="mt-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 font-bold-sport shadow-lg shadow-orange-500/30"
                     >
-                      {sortOrder === 'asc' ? '↑' : '↓'}
+                      {syncing ? 'Synchronisation...' : 'Synchroniser les matchs FFVB'}
                     </button>
-                    {filteredAndSortedMatches.length !== matches.length && (
-                      <span className="text-gray-400 text-sm font-bold-sport ml-2">
-                        ({filteredAndSortedMatches.length} / {matches.length} matchs)
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
-              )}
-            </div>
-            {matches.length === 0 ? (
-              <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
-                <p className="text-gray-400 mb-4">Aucun match programmé</p>
-                {group?.ffvbSourceUrl && (
-                  <button
-                    onClick={handleSyncFFVB}
-                    disabled={syncing}
-                    className="mt-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 font-bold-sport shadow-lg shadow-orange-500/30"
-                  >
-                    {syncing ? 'Synchronisation...' : 'Synchroniser les matchs FFVB'}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredAndSortedMatches.length === 0 && activeFiltersCount > 0 ? (
+              ) : (
+                <>
+                  {/* Filtres et tri */}
+                  {matches.length > 0 && (
+                    <div className="bg-gray-800 rounded-xl border border-gray-700 p-3 sm:p-4 mb-4">
+                      {/* Bouton pour afficher/masquer les filtres sur mobile */}
+                      <button
+                        onClick={() => setShowFilters(!showFilters)}
+                        className="md:hidden w-full flex items-center justify-between p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors mb-3"
+                      >
+                        <span className="text-gray-300 font-bold-sport text-sm">Filtres et tri</span>
+                        <svg
+                          className={`w-5 h-5 text-gray-400 transition-transform ${showFilters ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      
+                      <div className={`${showFilters ? 'block' : 'hidden'} md:block`}>
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-3">
+                          <span className="text-gray-300 font-bold-sport text-sm w-full md:w-auto">Filtres:</span>
+                        
+                          {/* Filtre par date */}
+                          <div className="flex items-center space-x-2">
+                            <label className="text-gray-400 text-xs font-bold-sport">Date:</label>
+                            <input
+                              type="date"
+                              value={filterDate}
+                              onChange={(e) => setFilterDate(e.target.value)}
+                              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            />
+                          </div>
+
+                          {/* Filtre par équipe */}
+                          <div className="flex items-center space-x-2">
+                            <label className="text-gray-400 text-xs font-bold-sport">Équipe:</label>
+                            <select
+                              value={filterTeam}
+                              onChange={(e) => setFilterTeam(e.target.value)}
+                              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500 min-w-[150px]"
+                            >
+                              <option value="">Toutes les équipes</option>
+                              {allTeams.map(team => (
+                                <option key={team} value={team}>{team}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Filtre par statut */}
+                          <div className="flex items-center space-x-2">
+                            <label className="text-gray-400 text-xs font-bold-sport">Statut:</label>
+                            <select
+                              value={filterStatus}
+                              onChange={(e) => setFilterStatus(e.target.value)}
+                              className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500"
+                            >
+                              <option value="">Tous les statuts</option>
+                              <option value="SCHEDULED">Programmé</option>
+                              <option value="IN_PROGRESS">En cours</option>
+                              <option value="FINISHED">Terminé</option>
+                              <option value="CANCELED">Annulé</option>
+                            </select>
+                          </div>
+
+                          {/* Filtre par pronostics */}
+                          <div className="flex items-center space-x-2">
+                            <label className="text-gray-400 text-xs font-bold-sport flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={filterHasPredictions}
+                                onChange={(e) => setFilterHasPredictions(e.target.checked)}
+                                className="w-4 h-4 text-orange-500 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
+                              />
+                              <span>Avec pronostics</span>
+                            </label>
+                          </div>
+
+                          {/* Bouton pour réinitialiser les filtres */}
+                          {activeFiltersCount > 0 && (
+                            <button
+                              onClick={clearFilters}
+                              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm font-bold-sport transition-colors"
+                            >
+                              Réinitialiser ({activeFiltersCount})
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Tri */}
+                        <div className="flex items-center space-x-2 pt-3 border-t border-gray-700">
+                          <span className="text-gray-400 text-sm font-bold-sport">Trier par:</span>
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value as 'date' | 'team' | 'status')}
+                            className="bg-gray-700 border border-gray-600 rounded-lg px-3 py-1.5 text-white text-sm font-bold-sport focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          >
+                            <option value="date">Date</option>
+                            <option value="team">Équipe</option>
+                            <option value="status">Statut</option>
+                          </select>
+                          <button
+                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                            className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-bold-sport transition-colors"
+                            title={sortOrder === 'asc' ? 'Ordre croissant' : 'Ordre décroissant'}
+                          >
+                            {sortOrder === 'asc' ? '↑' : '↓'}
+                          </button>
+                          {filteredAndSortedMatches.length !== matches.length && (
+                            <span className="text-gray-400 text-sm font-bold-sport ml-2">
+                              ({filteredAndSortedMatches.length} / {matches.length} matchs)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-4">
+                  {filteredAndSortedMatches.length === 0 && activeFiltersCount > 0 ? (
                   <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
                     <p className="text-gray-400 mb-4 font-bold-sport">Aucun match ne correspond aux filtres sélectionnés</p>
                     <button
@@ -818,15 +839,15 @@ export default function GroupDetailPage() {
                   </div>
                 ) : (
                   filteredAndSortedMatches.map((match) => (
-                  <div key={match.id} className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 hover:border-orange-500 transition-all duration-200">
+                  <div key={match.id} className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-4 sm:p-6 hover:border-orange-500 transition-all duration-200">
                     {/* Header du match */}
                     <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-700">
                       <div className="flex-1">
                         <div className="flex items-center space-x-4 mb-2">
-                          <h3 className="font-team text-2xl text-white">
-                            <span className="text-orange-400">{match.homeTeam}</span>
-                            <span className="mx-3 text-gray-500">VS</span>
-                            <span className="text-orange-400">{match.awayTeam}</span>
+                          <h3 className="font-team text-lg sm:text-xl lg:text-2xl text-white">
+                            <span className="text-orange-400 break-words">{match.homeTeam}</span>
+                            <span className="mx-2 sm:mx-3 text-gray-500">VS</span>
+                            <span className="text-orange-400 break-words">{match.awayTeam}</span>
                           </h3>
                         </div>
                         <p className="text-gray-400 text-sm">{formatDate(match.startAt)}</p>
@@ -848,14 +869,14 @@ export default function GroupDetailPage() {
                       <div className="mb-4">
                         <div className="flex items-center justify-center space-x-4 mb-3">
                           {/* Cases blanches pour sets */}
-                          <div className="flex space-x-2">
+                          <div className="flex flex-wrap gap-2 sm:gap-2 justify-center">
                             {[1, 2, 3, 4, 5].map((setNum) => {
                               const setScore = match.setScores?.[setNum - 1];
                               const homeWon = setScore && setScore.home > setScore.away;
                               const awayWon = setScore && setScore.away > setScore.home;
                               
                               return (
-                                <div key={setNum} className="bg-white rounded-lg p-3 min-w-[60px] text-center shadow-lg">
+                                <div key={setNum} className="bg-white rounded-lg p-2 sm:p-3 min-w-[50px] sm:min-w-[60px] text-center shadow-lg">
                                   <div className="text-xs text-gray-500 mb-1 font-bold-sport">SET {setNum}</div>
                                   {setScore ? (
                                     <div className="space-y-1">
@@ -877,12 +898,12 @@ export default function GroupDetailPage() {
                         </div>
                         {/* Score total */}
                         <div className="text-center">
-                          <div className="inline-flex items-center space-x-3 bg-gray-700 rounded-lg px-6 py-2">
-                            <span className="font-team text-xl text-white">{match.homeTeam}</span>
-                            <span className="font-sport text-3xl text-orange-500">
+                          <div className="inline-flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-gray-700 rounded-lg px-4 sm:px-6 py-2">
+                            <span className="font-team text-base sm:text-xl text-white text-center">{match.homeTeam}</span>
+                            <span className="font-sport text-2xl sm:text-3xl text-orange-500">
                               {match.setsHome} - {match.setsAway}
                             </span>
-                            <span className="font-team text-xl text-white">{match.awayTeam}</span>
+                            <span className="font-team text-base sm:text-xl text-white text-center">{match.awayTeam}</span>
                           </div>
                         </div>
                       </div>
@@ -1044,8 +1065,10 @@ export default function GroupDetailPage() {
                   </div>
                   ))
                 )}
-              </div>
-            )}
+                </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Sidebar */}
@@ -1130,8 +1153,9 @@ export default function GroupDetailPage() {
               </div>
             </div>
 
+            {/* Classement sticky Desktop uniquement */}
             {showTeamRanking && (
-              <div className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
+              <div className="hidden lg:block bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-6 sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-sport text-2xl text-white">
                     {isCoupe ? 'Équipes en lice' : 'Classement'}
@@ -1225,8 +1249,8 @@ export default function GroupDetailPage() {
 
       {/* Modal de confirmation - Quitter le groupe */}
       {showLeaveConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-xl shadow-2xl border border-yellow-500/50 p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-gray-800 rounded-xl shadow-2xl border border-yellow-500/50 p-4 sm:p-6 w-full max-w-md my-4">
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">⚠️</div>
               <h3 className="font-sport text-2xl text-white mb-2">Quitter le groupe</h3>
@@ -1266,8 +1290,8 @@ export default function GroupDetailPage() {
 
       {/* Modal de confirmation - Supprimer le groupe */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-xl shadow-2xl border border-red-500/50 p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-gray-800 rounded-xl shadow-2xl border border-red-500/50 p-4 sm:p-6 w-full max-w-md my-4">
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">🗑️</div>
               <h3 className="font-sport text-2xl text-white mb-2">Supprimer le groupe</h3>
@@ -1305,8 +1329,8 @@ export default function GroupDetailPage() {
 
       {/* Modal de transfert de leadership */}
       {showTransferLeadershipModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-800 rounded-xl shadow-2xl border border-blue-500/50 p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-gray-800 rounded-xl shadow-2xl border border-blue-500/50 p-4 sm:p-6 w-full max-w-md my-4">
             <div className="text-center mb-6">
               <div className="text-5xl mb-4">👑</div>
               <h3 className="font-sport text-2xl text-white mb-2">Transférer le leadership</h3>
@@ -1366,6 +1390,111 @@ export default function GroupDetailPage() {
               >
                 {processing ? 'Traitement...' : 'Transférer'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAB (Floating Action Button) pour le classement - Mobile/Tablette uniquement */}
+      {group?.ffvbSourceUrl && (
+        <button
+          onClick={() => setShowTeamRankingModal(true)}
+          className="lg:hidden fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full shadow-2xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 flex items-center justify-center z-40 hover:scale-110 active:scale-95"
+          aria-label="Afficher le classement"
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </button>
+      )}
+
+      {/* Modal pour le classement - Mobile/Tablette uniquement */}
+      {showTeamRankingModal && (
+        <div className="lg:hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end z-50" onClick={() => setShowTeamRankingModal(false)}>
+          <div className="w-full bg-gray-800 rounded-t-3xl shadow-2xl border-t-2 border-orange-500 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700 p-4 flex justify-between items-center z-10">
+              <h3 className="font-sport text-2xl text-white">
+                {isCoupe ? 'Équipes en lice' : 'Classement'}
+              </h3>
+              <div className="flex items-center space-x-2">
+                {group?.ffvbSourceUrl && (
+                  <a
+                    href={group.ffvbSourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-400 hover:text-blue-300 transition-colors p-2"
+                    title="Voir sur FFVB"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                )}
+                <button
+                  onClick={() => setShowTeamRankingModal(false)}
+                  className="text-gray-400 hover:text-gray-300 transition-colors p-2"
+                  aria-label="Fermer"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-4">
+              {isCoupe ? (
+                // Pour une coupe, afficher juste la liste des équipes encore en lice
+                <div className="space-y-2">
+                  {teamRanking.length > 0 ? (
+                    teamRanking.map((team: any) => (
+                      <div key={team.name} className="bg-gray-700 rounded-lg p-3">
+                        <span className="text-gray-300 font-bold-sport text-sm">{team.name}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500 text-sm text-center py-4">
+                      Aucune équipe en lice pour le moment
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Pour un championnat, afficher le classement complet (cartes sur mobile)
+                <div className="space-y-3">
+                  {teamRanking.length > 0 ? (
+                    teamRanking.map((team: any) => (
+                      <div key={team.name} className="bg-gray-700 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                              <span className="text-white font-bold-sport text-sm">{team.position}</span>
+                            </div>
+                            <span className="text-gray-300 font-bold-sport text-base truncate flex-1">
+                              {team.name}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-600">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <span className="text-gray-400 text-xs font-bold-sport">Points</span>
+                              <p className="text-orange-400 font-bold-sport text-lg">{team.points}</p>
+                            </div>
+                            <div>
+                              <span className="text-gray-400 text-xs font-bold-sport">Matchs</span>
+                              <p className="text-gray-300 font-bold-sport text-lg">{team.matchesPlayed}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-500 text-sm text-center py-4">
+                      Aucun classement disponible pour le moment
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

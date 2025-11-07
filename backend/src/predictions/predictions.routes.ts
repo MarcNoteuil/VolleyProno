@@ -9,6 +9,7 @@ const predictionsController = new PredictionsController();
 router.use(authMiddleware);
 
 router.get('/since-last-login', (req, res) => predictionsController.getPredictionsSinceLastLogin(req, res)); // Route pour récupérer les pronostics depuis la dernière connexion
+router.post('/mark-as-viewed', (req, res) => predictionsController.markPredictionsAsViewed(req, res)); // Route pour marquer les pronostics comme vus
 router.get('/risky-cooldown/:groupId', (req, res) => predictionsController.checkRiskyModeCooldown(req, res)); // Route pour vérifier le cooldown du mode risqué
 router.post('/:matchId', (req, res) => predictionsController.createOrUpdatePrediction(req, res));
 router.put('/:predictionId', (req, res) => predictionsController.updatePrediction(req, res));

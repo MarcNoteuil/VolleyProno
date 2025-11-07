@@ -140,6 +140,7 @@ model Prediction {
   predictedSetScores Json? // JSON array of {home: number, away: number}
   isRisky        Boolean   @default(false) // Mode risqué : double les points si correct, -2 pts si incorrect
   pointsAwarded  Int?      // calculé après résultat
+  notificationViewed Boolean @default(false) // Indique si l'utilisateur a déjà vu la notification pour ce pronostic
   deletedAt      DateTime? // Soft delete pour les pronostics terminés (conservés pour le classement)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt

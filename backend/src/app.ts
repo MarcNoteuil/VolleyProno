@@ -23,19 +23,41 @@ app.use(cors({
 }));
 
 // Rate limiting - configuration plus souple pour l'authentification
+// DÉSACTIVÉ en développement pour éviter les blocages
+const isDevelopment = !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 50, // limit each IP to 50 login attempts per 15 minutes (assez souple pour les tests)
+  max: isDevelopment ? 10000 : 100, // Très élevé en dev, normal en prod
   message: {
     code: 'RATE_LIMIT_EXCEEDED',
     message: 'Trop de tentatives de connexion, veuillez réessayer dans quelques minutes'
   },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
   skip: (req) => {
-    // Ignorer le rate limiting pour les requêtes depuis localhost en développement
-    return process.env.NODE_ENV === 'development' && 
-           (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1');
+    // En développement, ignorer complètement le rate limiting
+    if (isDevelopment) {
+      return true;
+    }
+    
+    // Détecter l'IP réelle (peut être derrière un proxy)
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const forwardedIp = req.headers['x-forwarded-for'] as string;
+    const realIp = forwardedIp ? forwardedIp.split(',')[0].trim() : ip;
+    
+    const isLocalhost = realIp === '127.0.0.1' || 
+                       realIp === '::1' || 
+                       realIp === '::ffff:127.0.0.1' ||
+                       realIp?.startsWith('172.') ||
+                       realIp?.startsWith('192.168.') ||
+                       realIp?.startsWith('10.') ||
+                       ip === '127.0.0.1' ||
+                       ip === '::1' ||
+                       ip?.startsWith('172.') ||
+                       ip?.startsWith('192.168.');
+    
+    return isLocalhost;
   }
 });
 

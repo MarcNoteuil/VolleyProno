@@ -149,10 +149,10 @@ export default function GroupsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="font-sport text-4xl text-white">Mes Groupes</h1>
-            <div className="flex space-x-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+          <h1 className="font-sport text-3xl sm:text-4xl text-white">Mes Groupes</h1>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <button
                 onClick={() => setShowCreateForm(true)}
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-1.5 rounded-lg hover:from-orange-600 hover:to-orange-700 font-bold-sport text-sm shadow-md shadow-orange-500/30 transition-all duration-200"
@@ -184,7 +184,7 @@ export default function GroupsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {groups.map((group) => (
               <div key={group.id} className="bg-gray-800 rounded-lg shadow-md border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
                 <h3 className="font-team text-lg text-white mb-2">

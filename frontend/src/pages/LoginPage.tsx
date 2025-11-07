@@ -27,18 +27,28 @@ export default function LoginPage() {
     return '';
   });
   
+  const [errorFromStorage] = useState(() => {
+    // Indiquer si l'erreur vient de sessionStorage (vérifié AVANT la suppression)
+    const hadError = !!sessionStorage.getItem('loginError');
+    return hadError;
+  });
+  
   const { login } = useAuthStore();
   const navigate = useNavigate();
   
-  // Nettoyer l'erreur après 5 secondes
+  // Nettoyer l'erreur après 10 secondes UNIQUEMENT si elle ne vient pas de sessionStorage
+  // (pour éviter qu'elle disparaisse immédiatement après un rechargement)
+  // Si elle vient de sessionStorage, elle reste visible jusqu'à ce que l'utilisateur tape
   useEffect(() => {
-    if (error) {
+    if (error && !errorFromStorage) {
       const timer = setTimeout(() => {
         setError('');
-      }, 5000);
+      }, 10000); // Augmenté à 10 secondes pour plus de visibilité
       return () => clearTimeout(timer);
     }
-  }, [error]);
+    // Si l'erreur vient de sessionStorage, ne pas la supprimer automatiquement
+    // Elle sera supprimée quand l'utilisateur tape dans les champs
+  }, [error, errorFromStorage]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

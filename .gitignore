@@ -2,12 +2,11 @@
 node_modules/
 */node_modules/
 
-# Environment variables
+# Environment variables - Fichiers sensibles (ne JAMAIS commiter !)
 .env
-.env.local
-.env.test
-.env.production
-*.env
+.env.*
+!.env.example
+!.env.example.txt
 
 # Build outputs
 dist/

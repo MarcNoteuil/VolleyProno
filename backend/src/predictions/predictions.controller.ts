@@ -240,4 +240,30 @@ export class PredictionsController {
       });
     }
   }
+
+  async markPredictionsAsViewed(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.userId!;
+      const { predictionIds } = req.body;
+
+      if (!Array.isArray(predictionIds)) {
+        return res.status(400).json({
+          code: 'ERROR',
+          message: 'predictionIds doit être un tableau'
+        });
+      }
+
+      await this.predictionsService.markPredictionsAsViewed(userId, predictionIds);
+      
+      res.json({
+        code: 'SUCCESS',
+        message: 'Pronostics marqués comme vus'
+      });
+    } catch (error) {
+      res.status(400).json({
+        code: 'ERROR',
+        message: error instanceof Error ? error.message : 'Erreur lors du marquage'
+      });
+    }
+  }
 }

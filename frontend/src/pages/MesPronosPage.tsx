@@ -175,7 +175,7 @@ export default function MesPronosPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">Mes Pronostics</h1>
           <p className="text-gray-400 font-bold-sport text-sm">Tous vos pronostics en un coup d'œil</p>
@@ -411,8 +411,8 @@ export default function MesPronosPage() {
 
         {/* Modale de confirmation de suppression */}
         {showDeleteModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
-            <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl max-w-md w-full p-4">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className="bg-gray-800 rounded-lg border border-gray-700 shadow-xl max-w-md w-full p-4 sm:p-6 my-4">
               <h2 className="font-sport text-lg text-white mb-3">Confirmer la suppression</h2>
               
               {getSelectedUnfinishedCount() > 0 ? (

@@ -194,7 +194,7 @@ export default function UpcomingMatchesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">Matchs à Venir</h1>
           <p className="text-gray-400 font-bold-sport text-sm">
@@ -234,18 +234,18 @@ export default function UpcomingMatchesPage() {
             {Object.entries(groupedMatches).map(([dateKey, dayMatches]) => (
               <div key={dateKey} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
                 {/* Header du jour */}
-                <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 border-b border-orange-600">
-                  <div className="flex items-center justify-between">
+                <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 sm:px-6 py-3 sm:py-4 border-b border-orange-600">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                     <div>
-                      <h2 className="font-sport text-2xl text-white mb-1">
+                      <h2 className="font-sport text-xl sm:text-2xl text-white mb-1">
                         {dateKey}
                       </h2>
-                      <p className="text-orange-100 font-bold-sport text-sm">
+                      <p className="text-orange-100 font-bold-sport text-xs sm:text-sm">
                         {dayMatches.length} match{dayMatches.length > 1 ? 's' : ''}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-orange-100 font-bold-sport text-sm">
+                    <div className="text-left sm:text-right">
+                      <p className="text-orange-100 font-bold-sport text-xs sm:text-sm">
                         {getDayOfWeek(dayMatches[0].startAt)}
                       </p>
                     </div>
@@ -259,28 +259,29 @@ export default function UpcomingMatchesPage() {
                     const hasPrediction = !!userPrediction;
                     
                     return (
-                      <div key={match.id} className="p-6 hover:bg-gray-750 transition-colors">
-                        <div className="flex items-center justify-between">
+                      <div key={match.id} className="p-4 sm:p-6 hover:bg-gray-750 transition-colors">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                           {/* Info du match */}
-                          <div className="flex-1">
+                          <div className="flex-1 w-full sm:w-auto">
                             {/* Nom du groupe - Prominent */}
                             <div className="mb-3">
-                              <span className="inline-block bg-orange-500/20 text-orange-400 px-3 py-1 rounded-lg text-sm font-bold-sport border border-orange-500/30">
+                              <span className="inline-block bg-orange-500/20 text-orange-400 px-2 sm:px-3 py-1 rounded-lg text-xs sm:text-sm font-bold-sport border border-orange-500/30">
                                 {match.group.name}
                               </span>
                             </div>
                             
                             {/* Équipes */}
-                            <div className="flex items-center space-x-4 mb-2">
-                              <span className="font-team text-xl text-white">{match.homeTeam}</span>
-                              <span className="text-gray-500 font-sport text-lg">VS</span>
-                              <span className="font-team text-xl text-white">{match.awayTeam}</span>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 mb-2">
+                              <span className="font-team text-lg sm:text-xl text-white break-words">{match.homeTeam}</span>
+                              <span className="text-gray-500 font-sport text-base sm:text-lg hidden sm:inline">VS</span>
+                              <span className="text-gray-500 font-sport text-base sm:text-lg sm:hidden">-</span>
+                              <span className="font-team text-lg sm:text-xl text-white break-words">{match.awayTeam}</span>
                             </div>
                             
                             {/* Date et heure */}
-                            <div className="flex items-center space-x-4 text-sm">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
                               <p className="text-gray-400 font-bold-sport">{formatDate(match.startAt)}</p>
-                              <span className="text-gray-600">•</span>
+                              <span className="text-gray-600 hidden sm:inline">•</span>
                               <p className="text-orange-400 font-bold-sport">
                                 Dans {getTimeUntilMatch(match.startAt)}
                               </p>
@@ -288,9 +289,9 @@ export default function UpcomingMatchesPage() {
                             
                             {/* Pronostic existant */}
                             {hasPrediction && userPrediction && (
-                              <div className="mt-3 inline-flex items-center space-x-2 bg-green-500/20 text-green-400 px-3 py-1 rounded-lg border border-green-500/30">
-                                <span className="text-sm font-bold-sport">✓</span>
-                                <span className="text-sm font-bold-sport">
+                              <div className="mt-3 inline-flex items-center space-x-2 bg-green-500/20 text-green-400 px-2 sm:px-3 py-1 rounded-lg border border-green-500/30">
+                                <span className="text-xs sm:text-sm font-bold-sport">✓</span>
+                                <span className="text-xs sm:text-sm font-bold-sport">
                                   Votre pronostic: {userPrediction.predictedHome} - {userPrediction.predictedAway}
                                 </span>
                               </div>
@@ -298,18 +299,18 @@ export default function UpcomingMatchesPage() {
                           </div>
 
                           {/* Actions */}
-                          <div className="ml-6 flex items-center space-x-3">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto sm:ml-6">
                             {hasPrediction ? (
                               <Link
                                 to={`/groups/${match.group.id}/matches/${match.id}/predict`}
-                                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 font-bold-sport shadow-lg shadow-orange-500/30 transition-all duration-200 text-sm"
+                                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 font-bold-sport shadow-lg shadow-orange-500/30 transition-all duration-200 text-xs sm:text-sm text-center"
                               >
                                 Modifier
                               </Link>
                             ) : (
                               <Link
                                 to={`/groups/${match.group.id}/matches/${match.id}/predict`}
-                                className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-2 rounded-lg hover:from-green-700 hover:to-green-800 font-bold-sport shadow-lg shadow-green-500/30 transition-all duration-200 text-sm"
+                                className="bg-gradient-to-r from-green-600 to-green-700 text-white px-4 sm:px-6 py-2 rounded-lg hover:from-green-700 hover:to-green-800 font-bold-sport shadow-lg shadow-green-500/30 transition-all duration-200 text-xs sm:text-sm text-center"
                               >
                                 Pronostiquer
                               </Link>

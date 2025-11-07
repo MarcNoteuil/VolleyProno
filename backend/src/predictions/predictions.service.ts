@@ -676,11 +676,13 @@ export class PredictionsService {
 
     // Récupérer tous les pronostics terminés depuis la dernière connexion
     // où les points ont été attribués (pointsAwarded !== null)
+    // ET qui n'ont pas encore été vus (notificationViewed === false)
     // On filtre par updatedAt du match pour trouver les matchs terminés récemment
     const predictions = await prisma.prediction.findMany({
       where: {
         userId,
         pointsAwarded: { not: null },
+        notificationViewed: false, // Seulement les pronostics non vus
         match: {
           status: 'FINISHED',
           scrapedAt: { gte: sevenDaysAgo }
@@ -716,8 +718,59 @@ export class PredictionsService {
       return sum + (pred.pointsAwarded || 0);
     }, 0);
 
+    // Grouper les pronostics par groupe pour calculer les points par groupe
+    const predictionsByGroup = predictions.reduce((acc, pred) => {
+      const groupId = pred.match.group.id;
+      const groupName = pred.match.group.name;
+      
+      if (!acc[groupId]) {
+        acc[groupId] = {
+          groupId,
+          groupName,
+          totalPoints: 0,
+          predictions: []
+        };
+      }
+      
+      const points = pred.pointsAwarded || 0;
+      acc[groupId].totalPoints += points;
+      acc[groupId].predictions.push({
+        id: pred.id,
+        matchId: pred.matchId,
+        homeTeam: pred.match.homeTeam,
+        awayTeam: pred.match.awayTeam,
+        predictedHome: pred.predictedHome,
+        predictedAway: pred.predictedAway,
+        actualHome: pred.match.setsHome,
+        actualAway: pred.match.setsAway,
+        pointsAwarded: points,
+        isRisky: pred.isRisky || false,
+        matchDate: pred.match.startAt
+      });
+      
+      return acc;
+    }, {} as Record<string, {
+      groupId: string;
+      groupName: string;
+      totalPoints: number;
+      predictions: Array<{
+        id: string;
+        matchId: string;
+        homeTeam: string;
+        awayTeam: string;
+        predictedHome: number;
+        predictedAway: number;
+        actualHome: number | null;
+        actualAway: number | null;
+        pointsAwarded: number;
+        isRisky: boolean;
+        matchDate: Date;
+      }>;
+    }>);
+
     return {
       totalPoints,
+      predictionsByGroup: Object.values(predictionsByGroup),
       predictions: predictions.map(pred => ({
         id: pred.id,
         matchId: pred.matchId,
@@ -734,5 +787,20 @@ export class PredictionsService {
         groupId: pred.match.group.id
       }))
     };
+  }
+
+  /**
+   * Marque les pronostics comme "vus" pour la notification
+   */
+  async markPredictionsAsViewed(userId: string, predictionIds: string[]) {
+    await prisma.prediction.updateMany({
+      where: {
+        id: { in: predictionIds },
+        userId
+      },
+      data: {
+        notificationViewed: true
+      }
+    });
   }
 }

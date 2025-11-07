@@ -140,7 +140,7 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">
             {user?.pseudo 
@@ -154,7 +154,7 @@ export default function DashboardPage() {
 
         {/* Statistiques */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-gray-400 font-bold-sport text-xs">Total Points</span>

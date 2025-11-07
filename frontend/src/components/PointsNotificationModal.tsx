@@ -18,8 +18,16 @@ interface Prediction {
   groupId: string;
 }
 
+interface GroupSummary {
+  groupId: string;
+  groupName: string;
+  totalPoints: number;
+  predictions: Prediction[];
+}
+
 interface PointsNotificationData {
   totalPoints: number;
+  predictionsByGroup: GroupSummary[];
   predictions: Prediction[];
 }
 
@@ -49,6 +57,19 @@ export default function PointsNotificationModal({ onClose }: PointsNotificationM
 
     fetchData();
   }, []);
+
+  // Marquer les pronostics comme vus quand la modal est fermée
+  const handleClose = async () => {
+    if (data && data.predictions.length > 0) {
+      try {
+        const predictionIds = data.predictions.map(p => p.id);
+        await api.post('/predictions/mark-as-viewed', { predictionIds });
+      } catch (error) {
+        console.error('Erreur lors du marquage des pronostics comme vus:', error);
+      }
+    }
+    onClose();
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -92,7 +113,7 @@ export default function PointsNotificationModal({ onClose }: PointsNotificationM
               🎉 Résultats de vos pronostics
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-gray-400 hover:text-gray-300 transition-colors"
               title="Fermer"
             >
@@ -133,6 +154,31 @@ export default function PointsNotificationModal({ onClose }: PointsNotificationM
               </div>
             </div>
           </div>
+
+          {/* Détail par groupe */}
+          {data.predictionsByGroup && data.predictionsByGroup.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-bold-sport text-white mb-3">Points par groupe :</h3>
+              <div className="space-y-2">
+                {data.predictionsByGroup.map((group) => (
+                  <div key={group.groupId} className="bg-gray-700 rounded-lg p-3 border border-gray-600">
+                    <div className="flex justify-between items-center">
+                      <span className="text-white font-bold-sport text-sm">{group.groupName}</span>
+                      <span className={`font-bold-sport text-lg ${
+                        group.totalPoints > 0 
+                          ? 'text-green-400' 
+                          : group.totalPoints < 0 
+                          ? 'text-red-400' 
+                          : 'text-gray-400'
+                      }`}>
+                        {group.totalPoints > 0 ? '+' : ''}{group.totalPoints} pts
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {!showDetails ? (
             <div className="text-center">
@@ -212,14 +258,17 @@ export default function PointsNotificationModal({ onClose }: PointsNotificationM
 
           <div className="mt-6 flex justify-end space-x-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="bg-gray-600 hover:bg-gray-700 text-white font-bold-sport px-6 py-2 rounded-lg transition-colors"
             >
               Fermer
             </button>
             {showDetails && (
               <button
-                onClick={() => navigate('/mes-pronos')}
+                onClick={() => {
+                  handleClose();
+                  navigate('/mes-pronos');
+                }}
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold-sport px-6 py-2 rounded-lg transition-colors"
               >
                 Voir tous mes pronostics
