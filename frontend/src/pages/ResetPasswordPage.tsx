@@ -55,8 +55,9 @@ export default function ResetPasswordPage() {
           navigate('/login');
         }, 3000);
       }
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Erreur lors de la réinitialisation du mot de passe');
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } };
+      setError(error.response?.data?.message || 'Erreur lors de la réinitialisation du mot de passe');
     } finally {
       setLoading(false);
     }
