@@ -123,15 +123,15 @@ export default function MesPronosPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'SCHEDULED':
-        return 'bg-blue-500 text-white';
+        return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border border-blue-400/30';
       case 'IN_PROGRESS':
-        return 'bg-yellow-500 text-white';
+        return 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border border-yellow-400/30 animate-pulse';
       case 'FINISHED':
-        return 'bg-green-500 text-white';
+        return 'bg-gradient-to-r from-green-500 to-green-600 text-white border border-green-400/30';
       case 'CANCELED':
-        return 'bg-red-600 text-white';
+        return 'bg-gradient-to-r from-red-600 to-red-700 text-white border border-red-500/30';
       default:
-        return 'bg-gray-500 text-white';
+        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border border-gray-400/30';
     }
   };
 
@@ -175,7 +175,7 @@ export default function MesPronosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-18 sm:pt-22 pb-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">Mes Pronostics</h1>
@@ -274,11 +274,13 @@ export default function MesPronosPage() {
         ) : (
           <div className="space-y-3">
             {filteredPredictions.map((prediction) => (
-              <div key={prediction.id} className={`bg-gray-800 rounded-lg shadow-md border p-4 transition-all duration-200 ${
+              <div key={prediction.id} className={`bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl shadow-xl border-2 p-4 sm:p-5 transition-all duration-300 transform hover:scale-[1.01] relative overflow-hidden group ${
                 selectedPredictions.has(prediction.id) 
-                  ? 'border-orange-500 bg-gray-750' 
-                  : 'border-gray-700 hover:border-orange-500'
+                  ? 'border-orange-500 bg-gray-750 shadow-orange-500/20' 
+                  : 'border-gray-700 hover:border-orange-500 hover:shadow-orange-500/20'
               }`}>
+                {/* Effet de brillance au hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
                 {/* Checkbox de sélection */}
                 <div className="flex items-start space-x-3">
                   <input
@@ -297,11 +299,11 @@ export default function MesPronosPage() {
                             <span className="mx-2 text-gray-500 text-xs">VS</span>
                             <span className="text-orange-400">{prediction.match.awayTeam}</span>
                           </h3>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold-sport ${getStatusColor(prediction.match.status)}`}>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold-sport shadow-lg ${getStatusColor(prediction.match.status)}`}>
                             {getStatusText(prediction.match.status)}
                           </span>
                           {prediction.match.isLocked && (
-                            <span className="px-2 py-0.5 rounded-full text-xs font-bold-sport bg-red-600 text-white">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-bold-sport bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg border border-red-500/50">
                               Verrouillé
                             </span>
                           )}
@@ -437,14 +439,14 @@ export default function MesPronosPage() {
                     )}
                     {prediction.pointsAwarded !== undefined && (
                       <div className="mt-2 pt-2 border-t border-gray-600">
-                        <p className={`font-bold-sport text-sm ${
-                          prediction.pointsAwarded > 0 
-                            ? 'text-green-400' 
-                            : prediction.pointsAwarded < 0 
-                            ? 'text-red-400' 
-                            : 'text-gray-400'
-                        }`}>
-                          Points obtenus: <span className="text-base">{String(prediction.pointsAwarded ?? 0)} pts</span>
+                        <p className="font-bold-sport text-sm text-gray-300">
+                          Points obtenus: <span className={`text-base px-2.5 py-1 rounded-lg inline-block ${
+                            prediction.pointsAwarded > 0 
+                              ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-lg shadow-green-500/20' 
+                              : prediction.pointsAwarded < 0 
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20' 
+                              : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                          }`}>{String(prediction.pointsAwarded ?? 0)} pts</span>
                         </p>
                       </div>
                     )}

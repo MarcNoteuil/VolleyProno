@@ -193,7 +193,7 @@ export default function UpcomingMatchesPage() {
   const groupedMatches = groupMatchesByDay();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-18 sm:pt-22 pb-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">Matchs à Venir</h1>
@@ -232,7 +232,7 @@ export default function UpcomingMatchesPage() {
         ) : (
           <div className="space-y-6">
             {Object.entries(groupedMatches).map(([dateKey, dayMatches]) => (
-              <div key={dateKey} className="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+              <div key={dateKey} className="bg-gray-800 rounded-xl border border-gray-700 overflow-visible p-2 sm:p-4">
                 {/* Header du jour */}
                 <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-4 sm:px-6 py-3 sm:py-4 border-b border-orange-600">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -253,14 +253,16 @@ export default function UpcomingMatchesPage() {
                 </div>
 
                 {/* Liste des matchs du jour */}
-                <div className="divide-y divide-gray-700">
+                <div className="space-y-4">
                   {dayMatches.map((match) => {
                     const userPrediction = match.predictions.find(p => p.user.id === user?.id);
                     const hasPrediction = !!userPrediction;
                     
                     return (
-                      <div key={match.id} className="p-4 sm:p-6 hover:bg-gray-750 transition-colors">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                      <div key={match.id} className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl border-2 border-gray-700 p-4 sm:p-6 hover:border-orange-500 hover:shadow-orange-500/20 transition-all duration-300 transform hover:scale-[1.01] relative overflow-hidden group">
+                        {/* Effet de brillance au hover */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-10">
                           {/* Info du match */}
                           <div className="flex-1 w-full sm:w-auto">
                             {/* Nom du groupe - Prominent */}

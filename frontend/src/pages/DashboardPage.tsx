@@ -139,7 +139,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-18 sm:pt-22 pb-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <h1 className="font-sport text-4xl text-white mb-1">
@@ -155,49 +155,54 @@ export default function DashboardPage() {
         {/* Statistiques */}
         {stats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-gray-400 font-bold-sport text-xs">Total Points</span>
-                <span className="text-lg">🏆</span>
+            <div className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl border-2 border-gray-700 p-4 sm:p-5 hover:border-orange-500 hover:shadow-orange-500/20 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <span className="text-gray-400 font-bold-sport text-xs uppercase tracking-wider">Total Points</span>
+                <span className="text-2xl filter drop-shadow-lg">🏆</span>
               </div>
-              <p className="font-sport text-2xl text-orange-500">{stats.totalPoints}</p>
-              <p className="text-gray-500 text-xs mt-1.5 font-bold-sport">pts accumulés</p>
+              <p className="font-sport text-3xl sm:text-4xl text-orange-500 drop-shadow-lg relative z-10">{stats.totalPoints}</p>
+              <p className="text-gray-500 text-xs mt-2 font-bold-sport relative z-10">pts accumulés</p>
             </div>
 
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-gray-400 font-bold-sport text-xs">Pronostics</span>
-                <span className="text-lg">📊</span>
+            <div className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl border-2 border-gray-700 p-4 sm:p-5 hover:border-orange-500 hover:shadow-orange-500/20 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <span className="text-gray-400 font-bold-sport text-xs uppercase tracking-wider">Pronostics</span>
+                <span className="text-2xl filter drop-shadow-lg">📊</span>
               </div>
-              <p className="font-sport text-2xl text-orange-500">{stats.totalPredictions}</p>
-              <p className="text-gray-500 text-xs mt-1.5 font-bold-sport">pronostics effectués</p>
+              <p className="font-sport text-3xl sm:text-4xl text-orange-500 drop-shadow-lg relative z-10">{stats.totalPredictions}</p>
+              <p className="text-gray-500 text-xs mt-2 font-bold-sport relative z-10">pronostics effectués</p>
             </div>
 
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-gray-400 font-bold-sport text-xs">Taux de réussite</span>
-                <span className="text-lg">🎯</span>
+            <div className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl border-2 border-gray-700 p-4 sm:p-5 hover:border-green-500 hover:shadow-green-500/20 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <span className="text-gray-400 font-bold-sport text-xs uppercase tracking-wider">Taux de réussite</span>
+                <span className="text-2xl filter drop-shadow-lg">🎯</span>
               </div>
-              <p className="font-sport text-2xl text-green-400">{stats.successRate}%</p>
-              <p className="text-gray-500 text-xs mt-1.5 font-bold-sport">de pronostics corrects</p>
+              <p className="font-sport text-3xl sm:text-4xl text-green-400 drop-shadow-lg relative z-10">{stats.successRate}%</p>
+              <p className="text-gray-500 text-xs mt-2 font-bold-sport relative z-10">de pronostics corrects</p>
             </div>
 
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-gray-400 font-bold-sport text-xs">Scores exacts</span>
-                <span className="text-lg">⭐</span>
+            <div className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl border-2 border-gray-700 p-4 sm:p-5 hover:border-yellow-500 hover:shadow-yellow-500/20 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <span className="text-gray-400 font-bold-sport text-xs uppercase tracking-wider">Scores exacts</span>
+                <span className="text-2xl filter drop-shadow-lg">⭐</span>
               </div>
-              <p className="font-sport text-2xl text-yellow-400">{stats.exactPredictions}</p>
-              <p className="text-gray-500 text-xs mt-1.5 font-bold-sport">pronostics parfaits</p>
+              <p className="font-sport text-3xl sm:text-4xl text-yellow-400 drop-shadow-lg relative z-10">{stats.exactPredictions}</p>
+              <p className="text-gray-500 text-xs mt-2 font-bold-sport relative z-10">pronostics parfaits</p>
             </div>
 
-            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-gray-400 font-bold-sport text-xs">Moyenne</span>
-                <span className="text-lg">📈</span>
+            <div className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl border-2 border-gray-700 p-4 sm:p-5 hover:border-blue-500 hover:shadow-blue-500/20 transition-all duration-300 transform hover:scale-105 relative overflow-hidden group">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
+              <div className="flex items-center justify-between mb-2 relative z-10">
+                <span className="text-gray-400 font-bold-sport text-xs uppercase tracking-wider">Moyenne</span>
+                <span className="text-2xl filter drop-shadow-lg">📈</span>
               </div>
-              <p className="font-sport text-2xl text-blue-400">{stats.averagePoints}</p>
-              <p className="text-gray-500 text-xs mt-1.5 font-bold-sport">pts par match</p>
+              <p className="font-sport text-3xl sm:text-4xl text-blue-400 drop-shadow-lg relative z-10">{stats.averagePoints}</p>
+              <p className="text-gray-500 text-xs mt-2 font-bold-sport relative z-10">pts par match</p>
             </div>
 
             <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 hover:border-orange-500 transition-all duration-200">

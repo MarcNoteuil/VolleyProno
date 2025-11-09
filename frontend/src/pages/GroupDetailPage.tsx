@@ -191,15 +191,15 @@ export default function GroupDetailPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'SCHEDULED':
-        return 'bg-blue-500 text-white';
+        return 'bg-gradient-to-r from-blue-500 to-blue-600 text-white border border-blue-400/30';
       case 'IN_PROGRESS':
-        return 'bg-yellow-500 text-white';
+        return 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white border border-yellow-400/30 animate-pulse';
       case 'FINISHED':
-        return 'bg-green-500 text-white';
+        return 'bg-gradient-to-r from-green-500 to-green-600 text-white border border-green-400/30';
       case 'CANCELED':
-        return 'bg-red-600 text-white';
+        return 'bg-gradient-to-r from-red-600 to-red-700 text-white border border-red-500/30';
       default:
-        return 'bg-gray-500 text-white';
+        return 'bg-gradient-to-r from-gray-500 to-gray-600 text-white border border-gray-400/30';
     }
   };
 
@@ -603,7 +603,7 @@ export default function GroupDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 pt-18 sm:pt-22 pb-4">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-4">
           <div className="flex justify-between items-start mb-3">
@@ -685,7 +685,7 @@ export default function GroupDetailPage() {
                     <button
                       onClick={handleSyncFFVB}
                       disabled={syncing}
-                      className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold-sport shadow-lg shadow-orange-500/30 transition-all duration-200"
+                      className="bg-gradient-to-r from-orange-500 via-orange-600 to-orange-600 text-white px-6 py-2.5 rounded-lg hover:from-orange-600 hover:via-orange-700 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed font-bold-sport shadow-lg shadow-orange-500/40 hover:shadow-orange-500/60 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:transform-none border border-orange-400/30"
                     >
                       {syncing ? 'Synchronisation...' : 'Sync FFVB'}
                     </button>
@@ -700,7 +700,7 @@ export default function GroupDetailPage() {
                     <button
                       onClick={handleSyncFFVB}
                       disabled={syncing}
-                      className="mt-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 font-bold-sport shadow-lg shadow-orange-500/30"
+                      className="mt-4 bg-gradient-to-r from-orange-500 via-orange-600 to-orange-600 text-white px-6 py-2.5 rounded-lg hover:from-orange-600 hover:via-orange-700 hover:to-orange-700 disabled:opacity-50 font-bold-sport shadow-lg shadow-orange-500/40 hover:shadow-orange-500/60 transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:transform-none border border-orange-400/30"
                     >
                       {syncing ? 'Synchronisation...' : 'Synchroniser les matchs FFVB'}
                     </button>
@@ -839,7 +839,9 @@ export default function GroupDetailPage() {
                   </div>
                 ) : (
                   filteredAndSortedMatches.map((match) => (
-                  <div key={match.id} className="bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-4 sm:p-6 hover:border-orange-500 transition-all duration-200">
+                  <div key={match.id} className="bg-gradient-to-br from-gray-800 via-gray-800/95 to-gray-800 rounded-xl shadow-2xl border-2 border-gray-700 p-4 sm:p-6 hover:border-orange-500 hover:shadow-orange-500/20 transition-all duration-300 transform hover:scale-[1.01] relative overflow-hidden group">
+                    {/* Effet de brillance au hover */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 -translate-x-full group-hover:translate-x-full"></div>
                     {/* Header du match */}
                     <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-700">
                       <div className="flex-1">
@@ -859,12 +861,12 @@ export default function GroupDetailPage() {
                         <p className="text-gray-400 text-sm">{formatDate(match.startAt)}</p>
                       </div>
                       <div className="flex space-x-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold-sport ${getStatusColor(match.status)}`}>
+                        <span className={`px-3 py-1.5 rounded-full text-xs font-bold-sport ${getStatusColor(match.status)} shadow-lg ${match.status === 'IN_PROGRESS' ? 'animate-pulse' : ''}`}>
                           {getStatusText(match.status)}
                         </span>
                         {match.isLocked && (
-                          <span className="px-3 py-1 rounded-full text-xs font-bold-sport bg-red-600 text-white">
-                            Verrouillé
+                          <span className="px-3 py-1.5 rounded-full text-xs font-bold-sport bg-gradient-to-r from-red-600 to-red-700 text-white shadow-lg border border-red-500/50">
+                            🔒 Verrouillé
                           </span>
                         )}
                       </div>
@@ -1016,12 +1018,12 @@ export default function GroupDetailPage() {
                                     )}
                                   </div>
                                   {prediction.pointsAwarded !== undefined && (
-                                    <span className={`font-bold-sport text-sm ${
+                                    <span className={`font-bold-sport text-sm px-2.5 py-1 rounded-lg ${
                                       prediction.pointsAwarded > 0 
-                                        ? 'text-green-400' 
+                                        ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-lg shadow-green-500/20' 
                                         : prediction.pointsAwarded < 0 
-                                        ? 'text-red-400' 
-                                        : 'text-gray-400'
+                                        ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/20' 
+                                        : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
                                     }`}>
                                       {prediction.pointsAwarded > 0 ? '+' : ''}{String(prediction.pointsAwarded ?? 0)} pts
                                     </span>
@@ -1088,7 +1090,7 @@ export default function GroupDetailPage() {
                               </span>
                               <Link
                                 to={`/groups/${groupId}/matches/${match.id}/predict`}
-                                className="inline-block bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2 rounded-lg hover:from-orange-600 hover:to-orange-700 text-sm font-bold-sport shadow-lg shadow-orange-500/30 transition-all duration-200"
+                                className="inline-block bg-gradient-to-r from-orange-500 via-orange-600 to-orange-600 text-white px-6 py-2.5 rounded-lg hover:from-orange-600 hover:via-orange-700 hover:to-orange-700 text-sm font-bold-sport shadow-lg shadow-orange-500/40 hover:shadow-orange-500/60 transition-all duration-300 transform hover:scale-105 active:scale-95 border border-orange-400/30"
                               >
                                 Modifier mon pronostic
                               </Link>

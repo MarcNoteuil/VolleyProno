@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { useAuthStore } from './stores/authStore';
 import Layout from './components/Layout';
+import ScrollToTop from './components/ScrollToTop';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -47,6 +48,7 @@ function App() {
 
   return (
     <Router>
+      <ScrollToTop />
       <div className="App min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
         <Routes>
           {/* Route d'accueil - WelcomePage si non connecté, Dashboard si connecté */}
