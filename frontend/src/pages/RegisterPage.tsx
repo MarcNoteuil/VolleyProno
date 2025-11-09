@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
+import Logo from '../components/Logo';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -39,14 +40,8 @@ export default function RegisterPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="relative">
-              <span className="font-sport text-6xl text-orange-500">🏐</span>
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-            </div>
+            <Logo size="lg" />
           </div>
-          <h2 className="font-sport text-5xl text-white mb-2">
-            VolleyProno
-          </h2>
           <p className="text-gray-400 font-bold-sport text-lg">
             Créer un compte
           </p>

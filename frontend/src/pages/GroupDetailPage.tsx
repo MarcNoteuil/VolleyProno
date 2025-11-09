@@ -845,9 +845,15 @@ export default function GroupDetailPage() {
                       <div className="flex-1">
                         <div className="flex items-center space-x-4 mb-2">
                           <h3 className="font-team text-lg sm:text-xl lg:text-2xl text-white">
-                            <span className="text-orange-400 break-words">{match.homeTeam}</span>
+                            <span className="text-orange-400 break-words">
+                              <span className="text-orange-400 font-bold mr-1">A</span>
+                              - {match.homeTeam}
+                            </span>
                             <span className="mx-2 sm:mx-3 text-gray-500">VS</span>
-                            <span className="text-orange-400 break-words">{match.awayTeam}</span>
+                            <span className="text-orange-400 break-words">
+                              <span className="text-orange-400 font-bold mr-1">B</span>
+                              - {match.awayTeam}
+                            </span>
                           </h3>
                         </div>
                         <p className="text-gray-400 text-sm">{formatDate(match.startAt)}</p>
@@ -864,11 +870,22 @@ export default function GroupDetailPage() {
                       </div>
                     </div>
 
-                    {/* Scores - Cases blanches pour sets */}
+                    {/* Scores par set - Cases blanches */}
                     {(match.status === 'FINISHED' || match.status === 'IN_PROGRESS') && match.setsHome !== undefined && match.setsAway !== undefined && (
                       <div className="mb-4">
+                        {/* Identifiants A et B - Responsive */}
+                        <div className="flex sm:flex-row flex-col items-center justify-center gap-2 sm:gap-4 mb-3 text-xs font-bold-sport">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-orange-400">A</span>
+                            <span className="text-gray-400 hidden sm:inline">- {match.homeTeam}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-orange-400">B</span>
+                            <span className="text-gray-400 hidden sm:inline">- {match.awayTeam}</span>
+                          </div>
+                        </div>
                         <div className="flex items-center justify-center space-x-4 mb-3">
-                          {/* Cases blanches pour sets */}
+                          {/* Cases blanches pour scores par set */}
                           <div className="flex flex-wrap gap-2 sm:gap-2 justify-center">
                             {[1, 2, 3, 4, 5].map((setNum) => {
                               const setScore = match.setScores?.[setNum - 1];
@@ -876,16 +893,24 @@ export default function GroupDetailPage() {
                               const awayWon = setScore && setScore.away > setScore.home;
                               
                               return (
-                                <div key={setNum} className="bg-white rounded-lg p-2 sm:p-3 min-w-[50px] sm:min-w-[60px] text-center shadow-lg">
+                                <div key={setNum} className="bg-white rounded-lg p-2 sm:p-3 min-w-[50px] sm:min-w-[60px] text-center shadow-lg relative">
                                   <div className="text-xs text-gray-500 mb-1 font-bold-sport">SET {setNum}</div>
                                   {setScore ? (
-                                    <div className="space-y-1">
-                                      <div className={`text-lg font-bold-sport ${homeWon ? 'text-orange-500' : 'text-black'}`}>
-                                        {setScore.home}
+                                    <div className="space-y-1 relative">
+                                      {/* Identifiant A aligné avec le score du haut */}
+                                      <div className="relative">
+                                        <span className="absolute -left-6 sm:-left-7 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-5 h-5 flex items-center justify-center">A</span>
+                                        <div className={`text-lg font-bold-sport ${homeWon ? 'text-orange-500' : 'text-black'}`}>
+                                          {setScore.home}
+                                        </div>
                                       </div>
                                       <div className="text-gray-400 text-xs">-</div>
-                                      <div className={`text-lg font-bold-sport ${awayWon ? 'text-orange-500' : 'text-black'}`}>
-                                        {setScore.away}
+                                      {/* Identifiant B aligné avec le score du bas */}
+                                      <div className="relative">
+                                        <span className="absolute -left-6 sm:-left-7 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-5 h-5 flex items-center justify-center">B</span>
+                                        <div className={`text-lg font-bold-sport ${awayWon ? 'text-orange-500' : 'text-black'}`}>
+                                          {setScore.away}
+                                        </div>
                                       </div>
                                     </div>
                                   ) : (
@@ -896,14 +921,20 @@ export default function GroupDetailPage() {
                             })}
                           </div>
                         </div>
-                        {/* Score total */}
+                        {/* Sets gagnés (résultat final) */}
                         <div className="text-center">
                           <div className="inline-flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-gray-700 rounded-lg px-4 sm:px-6 py-2">
-                            <span className="font-team text-base sm:text-xl text-white text-center">{match.homeTeam}</span>
+                            <span className="font-team text-base sm:text-xl text-white text-center">
+                              <span className="text-orange-400 font-bold mr-1">A</span>
+                              - {match.homeTeam}
+                            </span>
                             <span className="font-sport text-2xl sm:text-3xl text-orange-500">
                               {match.setsHome} - {match.setsAway}
                             </span>
-                            <span className="font-team text-base sm:text-xl text-white text-center">{match.awayTeam}</span>
+                            <span className="font-team text-base sm:text-xl text-white text-center">
+                              <span className="text-orange-400 font-bold mr-1">B</span>
+                              - {match.awayTeam}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -984,26 +1015,51 @@ export default function GroupDetailPage() {
                                       </span>
                                     )}
                                   </div>
-                                  {prediction.pointsAwarded !== undefined && prediction.pointsAwarded > 0 && (
-                                    <span className="font-bold-sport text-green-400 text-sm">
-                                      +{prediction.pointsAwarded} pts
+                                  {prediction.pointsAwarded !== undefined && (
+                                    <span className={`font-bold-sport text-sm ${
+                                      prediction.pointsAwarded > 0 
+                                        ? 'text-green-400' 
+                                        : prediction.pointsAwarded < 0 
+                                        ? 'text-red-400' 
+                                        : 'text-gray-400'
+                                    }`}>
+                                      {prediction.pointsAwarded > 0 ? '+' : ''}{String(prediction.pointsAwarded ?? 0)} pts
                                     </span>
                                   )}
                                 </div>
                                 
-                                {/* Scores détaillés par set */}
+                                {/* Scores par set prédits */}
                                 {displayedSetScores.length > 0 && (
                                   <div className="mt-2 pt-2 border-t border-gray-600">
+                                    {/* Identifiants A et B - Responsive */}
+                                    <div className="flex sm:flex-row flex-col items-center justify-center gap-2 sm:gap-4 mb-2 text-xs font-bold-sport">
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-orange-400">A</span>
+                                        <span className="text-gray-400 hidden sm:inline">- {match.homeTeam}</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <span className="text-orange-400">B</span>
+                                        <span className="text-gray-400 hidden sm:inline">- {match.awayTeam}</span>
+                                      </div>
+                                    </div>
                                     <div className="flex flex-wrap gap-2">
                                       {displayedSetScores.map((setScore, index) => {
                                         const homeWon = setScore.home > setScore.away;
                                         return (
-                                          <div key={index} className="bg-white rounded-lg p-1.5 min-w-[45px] text-center">
+                                          <div key={index} className="bg-white rounded-lg p-1.5 min-w-[45px] text-center relative">
                                             <div className="text-xs text-gray-500 mb-0.5 font-bold-sport">SET {index + 1}</div>
-                                            <div className="text-xs font-bold-sport">
-                                              <span className={homeWon ? 'text-orange-500' : 'text-black'}>{setScore.home}</span>
+                                            <div className="text-xs font-bold-sport space-y-0.5">
+                                              {/* Identifiant A aligné avec le score du haut */}
+                                              <div className="relative">
+                                                <span className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">A</span>
+                                                <span className={homeWon ? 'text-orange-500' : 'text-black'}>{setScore.home}</span>
+                                              </div>
                                               <span className="text-gray-400 mx-0.5">-</span>
-                                              <span className={!homeWon ? 'text-orange-500' : 'text-black'}>{setScore.away}</span>
+                                              {/* Identifiant B aligné avec le score du bas */}
+                                              <div className="relative">
+                                                <span className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">B</span>
+                                                <span className={!homeWon ? 'text-orange-500' : 'text-black'}>{setScore.away}</span>
+                                              </div>
                                             </div>
                                           </div>
                                         );

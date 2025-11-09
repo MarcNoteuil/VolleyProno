@@ -29,6 +29,7 @@ interface Prediction {
   predictedAway: number;
   predictedSetScores?: SetScore[];
   pointsAwarded?: number;
+  isRisky?: boolean;
   match: Match;
 }
 
@@ -314,26 +315,65 @@ export default function MesPronosPage() {
 
                 {/* Pronostic */}
                 <div className="mb-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
-                  <p className="text-orange-400 font-bold-sport mb-1.5 text-xs">Votre pronostic:</p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-orange-400 font-bold-sport text-xs">Votre pronostic:</p>
+                    {prediction.isRisky && (
+                      <span className="text-orange-500 text-xs font-bold-sport flex items-center space-x-1" title="Pronostic risqué">
+                        <span>🔥</span>
+                        <span>Risky</span>
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-2">
-                    <span className="font-team text-sm text-white">{prediction.match.homeTeam}</span>
+                    <span className="font-team text-sm text-white">
+                      <span className="text-orange-400 font-bold mr-1">A</span>
+                      - {prediction.match.homeTeam}
+                    </span>
                     <span className="font-sport text-xl text-orange-500">
                       {prediction.predictedHome} - {prediction.predictedAway}
                     </span>
-                    <span className="font-team text-sm text-white">{prediction.match.awayTeam}</span>
+                    <span className="font-team text-sm text-white">
+                      <span className="text-orange-400 font-bold mr-1">B</span>
+                      - {prediction.match.awayTeam}
+                    </span>
                   </div>
                   {prediction.predictedSetScores && prediction.predictedSetScores.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-gray-600">
-                      <p className="text-xs text-gray-400 font-bold-sport mb-1.5">Scores détaillés:</p>
+                      <p className="text-xs text-gray-400 font-bold-sport mb-1.5">Scores par set prédits:</p>
+                      {/* Identifiants A et B - Responsive */}
+                      <div className="flex sm:flex-row flex-col items-center justify-center gap-2 sm:gap-4 mb-2 text-xs font-bold-sport">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-orange-400">A</span>
+                          <span className="text-gray-400 hidden sm:inline">- {prediction.match.homeTeam}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-orange-400">B</span>
+                          <span className="text-gray-400 hidden sm:inline">- {prediction.match.awayTeam}</span>
+                        </div>
+                      </div>
                       <div className="flex flex-wrap gap-1.5">
-                        {prediction.predictedSetScores.map((setScore, index) => (
-                          <div key={index} className="bg-white rounded-lg p-1.5 min-w-[50px] text-center">
-                            <div className="text-xs text-gray-500 mb-0.5 font-bold-sport">SET {index + 1}</div>
-                            <div className="text-xs font-bold-sport text-black">
-                              {setScore.home} - {setScore.away}
+                        {prediction.predictedSetScores.map((setScore, index) => {
+                          // Filtrer les sets avec des scores non nuls
+                          if (setScore.home === 0 && setScore.away === 0) return null;
+                          return (
+                            <div key={index} className="bg-white rounded-lg p-1.5 min-w-[50px] text-center relative">
+                              <div className="text-xs text-gray-500 mb-0.5 font-bold-sport">SET {index + 1}</div>
+                              <div className="text-xs font-bold-sport text-black space-y-0.5">
+                                {/* Identifiant A aligné avec le score du haut */}
+                                <div className="relative">
+                                  <span className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">A</span>
+                                  <span>{setScore.home}</span>
+                                </div>
+                                <span>-</span>
+                                {/* Identifiant B aligné avec le score du bas */}
+                                <div className="relative">
+                                  <span className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">B</span>
+                                  <span>{setScore.away}</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -344,25 +384,50 @@ export default function MesPronosPage() {
                   <div className="mb-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
                     <p className="text-green-400 font-bold-sport mb-1.5 text-xs">Résultat:</p>
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className="font-team text-sm text-white">{prediction.match.homeTeam}</span>
+                      <span className="font-team text-sm text-white">
+                        <span className="text-orange-400 font-bold mr-1">A</span>
+                        - {prediction.match.homeTeam}
+                      </span>
                       <span className="font-sport text-xl text-green-400">
                         {prediction.match.setsHome} - {prediction.match.setsAway}
                       </span>
-                      <span className="font-team text-sm text-white">{prediction.match.awayTeam}</span>
+                      <span className="font-team text-sm text-white">
+                        <span className="text-orange-400 font-bold mr-1">B</span>
+                        - {prediction.match.awayTeam}
+                      </span>
                     </div>
                     {prediction.match.setScores && prediction.match.setScores.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-gray-600">
-                        <p className="text-xs text-gray-400 font-bold-sport mb-1.5">Scores détaillés:</p>
+                        <p className="text-xs text-gray-400 font-bold-sport mb-1.5">Scores par set réels:</p>
+                        {/* Identifiants A et B - Responsive */}
+                        <div className="flex sm:flex-row flex-col items-center justify-center gap-2 sm:gap-4 mb-2 text-xs font-bold-sport">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-orange-400">A</span>
+                            <span className="text-gray-400 hidden sm:inline">- {prediction.match.homeTeam}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-orange-400">B</span>
+                            <span className="text-gray-400 hidden sm:inline">- {prediction.match.awayTeam}</span>
+                          </div>
+                        </div>
                         <div className="flex flex-wrap gap-1.5">
                           {prediction.match.setScores.map((setScore, index) => {
                             const homeWon = setScore.home > setScore.away;
                             return (
-                              <div key={index} className="bg-white rounded-lg p-1.5 min-w-[50px] text-center">
+                              <div key={index} className="bg-white rounded-lg p-1.5 min-w-[50px] text-center relative">
                                 <div className="text-xs text-gray-500 mb-0.5 font-bold-sport">SET {index + 1}</div>
-                                <div className="text-xs font-bold-sport">
-                                  <span className={homeWon ? 'text-orange-500' : 'text-black'}>{setScore.home}</span>
+                                <div className="text-xs font-bold-sport space-y-0.5">
+                                  {/* Identifiant A aligné avec le score du haut */}
+                                  <div className="relative">
+                                    <span className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">A</span>
+                                    <span className={homeWon ? 'text-orange-500' : 'text-black'}>{setScore.home}</span>
+                                  </div>
                                   <span className="text-gray-400 mx-0.5">-</span>
-                                  <span className={!homeWon ? 'text-orange-500' : 'text-black'}>{setScore.away}</span>
+                                  {/* Identifiant B aligné avec le score du bas */}
+                                  <div className="relative">
+                                    <span className="absolute -left-5 sm:-left-6 top-1/2 -translate-y-1/2 text-orange-400 font-bold text-xs bg-gray-800 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center text-[10px] sm:text-xs">B</span>
+                                    <span className={!homeWon ? 'text-orange-500' : 'text-black'}>{setScore.away}</span>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -372,8 +437,14 @@ export default function MesPronosPage() {
                     )}
                     {prediction.pointsAwarded !== undefined && (
                       <div className="mt-2 pt-2 border-t border-gray-600">
-                        <p className="text-green-400 font-bold-sport text-sm">
-                          Points obtenus: <span className="text-base">{prediction.pointsAwarded} pts</span>
+                        <p className={`font-bold-sport text-sm ${
+                          prediction.pointsAwarded > 0 
+                            ? 'text-green-400' 
+                            : prediction.pointsAwarded < 0 
+                            ? 'text-red-400' 
+                            : 'text-gray-400'
+                        }`}>
+                          Points obtenus: <span className="text-base">{String(prediction.pointsAwarded ?? 0)} pts</span>
                         </p>
                       </div>
                     )}

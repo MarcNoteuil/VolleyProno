@@ -64,10 +64,10 @@ export class CronJobManager {
 
   /**
    * Job pour synchroniser les matchs FFVB
-   * Exécuté toutes les heures
+   * Exécuté toutes les 15 minutes pour détecter rapidement les matchs terminés
    */
   private startSyncFFVBJob() {
-    cron.schedule('0 * * * *', async () => {
+    cron.schedule('*/15 * * * *', async () => {
       try {
         logger.info('Début de la synchronisation FFVB');
         
@@ -103,11 +103,11 @@ export class CronJobManager {
   }
 
   /**
-   * Job pour calculer les points des matchs terminés
-   * Exécuté toutes les heures
+   * Job pour calculer les points des matchs terminés (sécurité en cas d'échec du calcul automatique)
+   * Exécuté toutes les 30 minutes pour rattraper les matchs qui n'auraient pas été calculés
    */
   private startCalculatePointsJob() {
-    cron.schedule('30 * * * *', async () => {
+    cron.schedule('*/30 * * * *', async () => {
       try {
         logger.info('Début du calcul des points');
         
@@ -118,21 +118,22 @@ export class CronJobManager {
             setsAway: { not: null }
           },
           include: {
-            predictions: {
-              where: {
-                pointsAwarded: null
-              }
-            }
+            predictions: true // Inclure TOUTES les prédictions pour recalculer même si points déjà calculés
           }
         });
 
         for (const match of finishedMatches) {
-          if (match.predictions.length === 0) continue;
+          // Filtrer les prédictions qui n'ont pas encore de points calculés
+          const predictionsToRecalculate = match.predictions.filter(p => p.pointsAwarded === null);
+          
+          // Si toutes les prédictions ont déjà des points, on ne recalcule pas (sauf si c'est un recalcul manuel)
+          if (predictionsToRecalculate.length === 0) continue;
 
           try {
             // Utiliser le service de prédictions qui prend en compte le mode risqué
+            // Le service recalcule TOUTES les prédictions du match
             await this.predictionsService.calculatePointsForMatch(match.id);
-            logger.info(`Points calculés pour le match ${match.id} (${match.predictions.length} prédictions)`);
+            logger.info(`Points calculés pour le match ${match.id} (${match.homeTeam} vs ${match.awayTeam}) - ${match.predictions.length} prédictions, ${predictionsToRecalculate.length} à calculer`);
           } catch (error) {
             logger.error(`Erreur lors du calcul des points pour le match ${match.id}:`, error);
           }
@@ -153,7 +154,9 @@ export class CronJobManager {
       where: {
         groupId,
         OR: [
-          { ffvbMatchId: matchData.ffvbMatchId },
+          // Si on a un ffvbMatchId, chercher par celui-ci
+          ...(matchData.ffvbMatchId ? [{ ffvbMatchId: matchData.ffvbMatchId }] : []),
+          // Sinon, chercher par équipes et date (fenêtre de 2h avant/après)
           {
             homeTeam: matchData.homeTeam,
             awayTeam: matchData.awayTeam,
@@ -163,6 +166,14 @@ export class CronJobManager {
             }
           }
         ]
+      },
+      include: {
+        predictions: {
+          select: {
+            id: true,
+            pointsAwarded: true
+          }
+        }
       }
     });
 
@@ -172,6 +183,17 @@ export class CronJobManager {
       const isNowFinished = matchData.status === 'FINISHED';
       const justFinished = !wasFinished && isNowFinished;
       
+      // Vérifier si les scores viennent d'être mis à jour (même si le match était déjà FINISHED)
+      const hadScores = existingMatch.setsHome !== null && existingMatch.setsHome !== undefined && 
+                        existingMatch.setsAway !== null && existingMatch.setsAway !== undefined;
+      const hasNewScores = matchData.setsHome !== null && matchData.setsHome !== undefined && 
+                           matchData.setsAway !== null && matchData.setsAway !== undefined;
+      const scoresJustUpdated = !hadScores && hasNewScores;
+      
+      // Vérifier si les scores ont changé (même si le match était déjà FINISHED)
+      const scoresChanged = hadScores && hasNewScores && 
+                           (existingMatch.setsHome !== matchData.setsHome || existingMatch.setsAway !== matchData.setsAway);
+      
       // Mettre à jour le match existant
       await prisma.match.update({
         where: { id: existingMatch.id },
@@ -180,17 +202,27 @@ export class CronJobManager {
           setsHome: matchData.setsHome,
           setsAway: matchData.setsAway,
           setScores: matchData.setScores ? JSON.parse(JSON.stringify(matchData.setScores)) : null,
-          scrapedAt: new Date()
+          scrapedAt: new Date(),
+          // Mettre à jour le ffvbMatchId s'il n'était pas présent
+          ...(matchData.ffvbMatchId && !existingMatch.ffvbMatchId ? { ffvbMatchId: matchData.ffvbMatchId } : {})
         }
       });
       
-      // Si le match vient d'être terminé, calculer immédiatement les points
-      if (justFinished && matchData.setsHome !== undefined && matchData.setsAway !== undefined) {
+      // Calculer les points si :
+      // 1. Le match vient d'être terminé (justFinished)
+      // 2. Les scores viennent d'être mis à jour (scoresJustUpdated)
+      // 3. Les scores ont changé (scoresChanged)
+      // 4. Le match est terminé mais n'a pas encore de points calculés pour toutes les prédictions
+      const needsPointCalculation = isNowFinished && hasNewScores && 
+        (justFinished || scoresJustUpdated || scoresChanged || 
+         existingMatch.predictions.some(p => p.pointsAwarded === null));
+      
+      if (needsPointCalculation) {
         try {
           const { PredictionsService } = await import('../predictions/predictions.service');
           const predictionsService = new PredictionsService();
           await predictionsService.calculatePointsForMatch(existingMatch.id);
-          logger.info(`✅ Points calculés immédiatement pour le match ${existingMatch.id}`);
+          logger.info(`✅ Points calculés immédiatement pour le match ${existingMatch.id} (${existingMatch.homeTeam} vs ${existingMatch.awayTeam})`);
         } catch (error) {
           logger.error(`❌ Erreur lors du calcul des points pour le match ${existingMatch.id}:`, error);
           // Ne pas faire échouer la synchronisation si le calcul des points échoue

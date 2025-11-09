@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
+import Logo from '../components/Logo';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -20,7 +21,12 @@ export default function ForgotPasswordPage() {
         setSuccess(true);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erreur lors de l\'envoi de l\'email');
+      // Si l'email n'existe pas, afficher un message spécifique
+      if (err.response?.data?.code === 'EMAIL_NOT_FOUND') {
+        setError(err.response.data.message || 'Cet email n\'existe pas dans notre base de données.');
+      } else {
+        setError(err.response?.data?.message || 'Erreur lors de l\'envoi de l\'email');
+      }
     } finally {
       setLoading(false);
     }
@@ -31,14 +37,8 @@ export default function ForgotPasswordPage() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="relative">
-              <span className="font-sport text-6xl text-orange-500">🏐</span>
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-            </div>
+            <Logo size="lg" />
           </div>
-          <h2 className="font-sport text-5xl text-white mb-2">
-            VolleyProno
-          </h2>
           <p className="text-gray-400 font-bold-sport text-lg">
             Mot de passe oublié
           </p>

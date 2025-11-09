@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import Logo from './Logo';
 
 export default function Header() {
   const { logout, user, isAuthenticated } = useAuthStore();
@@ -26,19 +27,11 @@ export default function Header() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-b-2 border-orange-500 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-20 sm:h-24">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-2 group" onClick={handleLinkClick}>
-              <div className="relative">
-                <span className="font-sport text-3xl text-orange-500 group-hover:text-orange-400 transition-colors">
-                  🏐
-                </span>
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              </div>
-              <span className="font-sport text-2xl text-white group-hover:text-orange-400 transition-colors">
-                VolleyProno
-              </span>
-            </Link>
+            <div onClick={handleLinkClick}>
+              <Logo size="md" />
+            </div>
 
             {/* Navigation Desktop */}
             <nav className="hidden md:flex items-center space-x-1">

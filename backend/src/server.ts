@@ -44,7 +44,24 @@ async function startServer() {
     });
 
   } catch (error) {
+    // Afficher l'erreur complète dans la console pour le débogage
+    console.error('=== ERREUR DÉTAILLÉE ===');
+    console.error(error);
+    if (error instanceof Error) {
+      console.error('Message:', error.message);
+      console.error('Stack:', error.stack);
+    } else {
+      console.error('Erreur complète:', JSON.stringify(error, null, 2));
+    }
+    console.error('========================');
+    
     logger.error('Erreur lors du démarrage du serveur:', error);
+    if (error instanceof Error) {
+      logger.error('Message:', error.message);
+      logger.error('Stack:', error.stack);
+    } else {
+      logger.error('Erreur complète:', JSON.stringify(error, null, 2));
+    }
     process.exit(1);
   }
 }

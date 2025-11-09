@@ -159,15 +159,34 @@ export class AuthService {
    * Demande une réinitialisation de mot de passe
    */
   async requestPasswordReset(email: string) {
-    // Trouver l'utilisateur
+    // Trouver l'utilisateur - vérification explicite de l'existence
     const user = await prisma.user.findUnique({
       where: { email }
     });
 
-    // Ne pas révéler si l'email existe ou non (sécurité)
+    // Si l'utilisateur n'existe pas, retourner un code spécifique
     if (!user) {
-      // On retourne true même si l'utilisateur n'existe pas pour ne pas révéler l'email
-      return { success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+      return { 
+        success: false, 
+        code: 'EMAIL_NOT_FOUND',
+        message: 'Cet email n\'existe pas dans notre base de données.' 
+      };
+    }
+
+    // Vérification supplémentaire : s'assurer que l'utilisateur existe vraiment
+    // (protection contre les problèmes de timing ou de suppression incomplète)
+    const userStillExists = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true }
+    });
+
+    if (!userStillExists) {
+      // L'utilisateur a été supprimé entre-temps, ne pas envoyer d'email
+      return { 
+        success: false, 
+        code: 'EMAIL_NOT_FOUND',
+        message: 'Cet email n\'existe pas dans notre base de données.' 
+      };
     }
 
     // Générer un token unique
@@ -184,7 +203,25 @@ export class AuthService {
       }
     });
 
-    // Envoyer l'email de réinitialisation
+    // Vérification finale avant l'envoi : s'assurer que l'utilisateur existe toujours
+    const finalUserCheck = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, email: true, pseudo: true }
+    });
+
+    // Si l'utilisateur n'existe plus, supprimer le token et ne pas envoyer d'email
+    if (!finalUserCheck) {
+      await prisma.passwordResetToken.deleteMany({
+        where: { token: resetToken }
+      });
+      return { 
+        success: false, 
+        code: 'EMAIL_NOT_FOUND',
+        message: 'Cet email n\'existe pas dans notre base de données.' 
+      };
+    }
+
+    // Envoyer l'email de réinitialisation UNIQUEMENT si l'utilisateur existe
     try {
       // En mode développement, si SMTP n'est pas configuré, afficher le lien dans la console
       if (env.NODE_ENV === 'development' && (!env.SMTP_USER || !env.SMTP_PASS)) {
@@ -192,16 +229,25 @@ export class AuthService {
         console.log('\n📧 ============================================');
         console.log('📧 MODE DÉVELOPPEMENT - Email non envoyé');
         console.log('📧 ============================================');
-        console.log(`📧 Email: ${user.email}`);
-        console.log(`📧 Pseudo: ${user.pseudo}`);
+        console.log(`📧 Email: ${finalUserCheck.email}`);
+        console.log(`📧 Pseudo: ${finalUserCheck.pseudo}`);
         console.log(`📧 Lien de réinitialisation:`);
         console.log(`📧 ${resetUrl}`);
         console.log('📧 ============================================\n');
-        return { success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+        return { 
+          success: true, 
+          code: 'EMAIL_SENT',
+          message: 'Un lien de réinitialisation a été envoyé à votre adresse email.' 
+        };
       }
 
-      await EmailService.sendPasswordResetEmail(user.email, resetToken, user.pseudo);
-      return { success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+      // Envoyer l'email UNIQUEMENT si l'utilisateur existe
+      await EmailService.sendPasswordResetEmail(finalUserCheck.email, resetToken, finalUserCheck.pseudo);
+      return { 
+        success: true, 
+        code: 'EMAIL_SENT',
+        message: 'Un lien de réinitialisation a été envoyé à votre adresse email.' 
+      };
     } catch (error: any) {
       // Supprimer le token si l'email n'a pas pu être envoyé
       await prisma.passwordResetToken.deleteMany({

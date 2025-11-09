@@ -112,6 +112,15 @@ export class AuthController {
       const data = requestPasswordResetSchema.parse(req.body);
       const result = await this.authService.requestPasswordReset(data.email);
       
+      // Si l'email n'existe pas, retourner un code spécifique
+      if (result.code === 'EMAIL_NOT_FOUND') {
+        return res.status(404).json({
+          code: 'EMAIL_NOT_FOUND',
+          message: result.message
+        });
+      }
+      
+      // Si l'email a été envoyé avec succès
       res.json({
         code: 'SUCCESS',
         message: result.message,

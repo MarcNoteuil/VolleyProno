@@ -471,7 +471,7 @@ export class PredictionsService {
       }
     });
 
-    if (!match || match.status !== 'FINISHED' || !match.setsHome || !match.setsAway) {
+    if (!match || match.status !== 'FINISHED' || match.setsHome === null || match.setsHome === undefined || match.setsAway === null || match.setsAway === undefined) {
       throw new Error('Match non terminé ou scores manquants');
     }
 
@@ -482,6 +482,27 @@ export class PredictionsService {
     const updatePromises = match.predictions.map(prediction => {
       let points = 0;
       const isRisky = prediction.isRisky || false;
+
+      // Convertir les valeurs en nombres pour éviter les problèmes de comparaison
+      const predictedHome = Number(prediction.predictedHome);
+      const predictedAway = Number(prediction.predictedAway);
+      const actualHomeNum = Number(actualHome);
+      const actualAwayNum = Number(actualAway);
+
+
+      // Vérifier que les valeurs sont valides
+      if (isNaN(predictedHome) || isNaN(predictedAway) || isNaN(actualHomeNum) || isNaN(actualAwayNum)) {
+        console.error(`❌ Valeurs invalides pour le pronostic ${prediction.id}:`, {
+          predictedHome: prediction.predictedHome,
+          predictedAway: prediction.predictedAway,
+          actualHome,
+          actualAway
+        });
+        return prisma.prediction.update({
+          where: { id: prediction.id },
+          data: { pointsAwarded: 0 }
+        });
+      }
 
       // Calculer le bonus score détaillé
       let bonusDetailedSets = 0;
@@ -497,7 +518,7 @@ export class PredictionsService {
           const predictedSet = predictedScores[index];
           const actualSet = actualSetScores[index];
           // Comparer set 1 avec set 1, set 2 avec set 2, etc. (pas set 1 avec set 2)
-          if (predictedSet.home === actualSet.home && predictedSet.away === actualSet.away) {
+          if (Number(predictedSet.home) === Number(actualSet.home) && Number(predictedSet.away) === Number(actualSet.away)) {
             exactSetsCount++;
           }
         }
@@ -511,7 +532,7 @@ export class PredictionsService {
       }
 
       // Score exact (sets)
-      if (prediction.predictedHome === actualHome && prediction.predictedAway === actualAway) {
+      if (predictedHome === actualHomeNum && predictedAway === actualAwayNum) {
         points = 3;
         
         if (isRisky) {
@@ -527,11 +548,13 @@ export class PredictionsService {
           // Sans mode risqué : score exact + bonus sets
           points += bonusDetailedSets;
         }
+        
+        console.log(`✅ Score exact pour ${prediction.id}: ${predictedHome}-${predictedAway} = ${actualHomeNum}-${actualAwayNum} → ${points} pts`);
       }
       // Bon vainqueur (seulement si le score exact n'est pas atteint)
       else if (
-        (actualHome > actualAway && prediction.predictedHome > prediction.predictedAway) ||
-        (actualAway > actualHome && prediction.predictedAway > prediction.predictedHome)
+        (actualHomeNum > actualAwayNum && predictedHome > predictedAway) ||
+        (actualAwayNum > actualHomeNum && predictedAway > predictedHome)
       ) {
         points = 1;
         
@@ -542,6 +565,8 @@ export class PredictionsService {
         
         // Le bonus score détaillé s'ajoute toujours (hors de la multiplication risquée)
         points += bonusDetailedSets;
+        
+        console.log(`✅ Bon vainqueur pour ${prediction.id}: ${predictedHome}-${predictedAway} (réel: ${actualHomeNum}-${actualAwayNum}) → ${points} pts`);
       }
       // Sinon 0 points (pas de points pour différence de sets seule)
       // Mode risqué : -2 points si le vainqueur est incorrect
@@ -554,6 +579,8 @@ export class PredictionsService {
         
         // Le bonus score détaillé s'ajoute toujours (même en cas de défaite)
         points += bonusDetailedSets;
+        
+        console.log(`❌ Vainqueur incorrect pour ${prediction.id}: ${predictedHome}-${predictedAway} (réel: ${actualHomeNum}-${actualAwayNum}) → ${points} pts`);
       }
 
       return prisma.prediction.update({
@@ -563,8 +590,8 @@ export class PredictionsService {
     });
 
     await Promise.all(updatePromises);
-
-    return match.predictions.length;
+    
+    return updatePromises.length;
   }
 
   async deletePredictions(predictionIds: string[], userId: string) {

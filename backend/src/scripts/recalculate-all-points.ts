@@ -1,7 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 import { PredictionsService } from '../predictions/predictions.service';
 
-const prisma = new PrismaClient();
+// Utiliser directement les variables d'environnement du conteneur Docker
+// Le docker-compose.yml définit déjà DATABASE_URL avec mysql:3306
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL || 'mysql://volley:volley@mysql:3306/volleyprono'
+    }
+  }
+});
 const predictionsService = new PredictionsService();
 
 async function recalculateAllPoints() {
@@ -15,12 +23,8 @@ async function recalculateAllPoints() {
         setsHome: { not: null },
         setsAway: { not: null }
       },
-      select: {
-        id: true,
-        homeTeam: true,
-        awayTeam: true,
-        setsHome: true,
-        setsAway: true
+      include: {
+        predictions: true
       }
     });
 
@@ -31,7 +35,17 @@ async function recalculateAllPoints() {
 
     for (const match of finishedMatches) {
       try {
-        console.log(`\n🎯 Recalcul des points pour : ${match.homeTeam} vs ${match.awayTeam} (${match.setsHome}-${match.setsAway})`);
+        // Vérifier s'il y a des prédictions pour ce match
+        const predictionsCount = await prisma.prediction.count({
+          where: { matchId: match.id }
+        });
+        
+        if (predictionsCount === 0) {
+          console.log(`⏭️  Pas de prédictions pour : ${match.homeTeam} vs ${match.awayTeam}`);
+          continue;
+        }
+        
+        console.log(`\n🎯 Recalcul des points pour : ${match.homeTeam} vs ${match.awayTeam} (${match.setsHome}-${match.setsAway}) - ${predictionsCount} prédiction(s)`);
         await predictionsService.calculatePointsForMatch(match.id);
         successCount++;
         console.log(`✅ Points recalculés avec succès`);

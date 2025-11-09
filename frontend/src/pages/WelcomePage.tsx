@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Logo from '../components/Logo';
 
 export default function WelcomePage() {
   const { isAuthenticated } = useAuthStore();
@@ -26,9 +27,9 @@ export default function WelcomePage() {
         {/* Hero Section avec titre et CTA */}
         <div className="text-center space-y-4">
           <div className="space-y-2">
-            <h1 className="font-sport text-4xl md:text-5xl text-white mb-1 drop-shadow-lg">
-              🏐 Volley<span className="text-orange-500">Prono</span>
-            </h1>
+            <div className="flex justify-center mb-4">
+              <Logo size="lg" />
+            </div>
             <p className="font-bold-sport text-base md:text-lg text-gray-300 max-w-2xl mx-auto">
               Le pronostic de volley-ball qui transforme chaque match en défi !
             </p>

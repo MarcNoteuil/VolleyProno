@@ -267,10 +267,30 @@ export class MatchesService {
       });
 
       if (existingMatch) {
+        // Récupérer les prédictions pour vérifier si des points doivent être calculés
+        const predictions = await prisma.prediction.findMany({
+          where: { matchId: existingMatch.id },
+          select: {
+            id: true,
+            pointsAwarded: true
+          }
+        });
+        
         // Vérifier si le match vient d'être terminé (passage de SCHEDULED/IN_PROGRESS à FINISHED)
         const wasFinished = existingMatch.status === 'FINISHED';
         const isNowFinished = matchData.status === 'FINISHED';
         const justFinished = !wasFinished && isNowFinished;
+        
+        // Vérifier si les scores viennent d'être mis à jour (même si le match était déjà FINISHED)
+        const hadScores = existingMatch.setsHome !== null && existingMatch.setsHome !== undefined && 
+                          existingMatch.setsAway !== null && existingMatch.setsAway !== undefined;
+        const hasNewScores = matchData.setsHome !== null && matchData.setsHome !== undefined && 
+                             matchData.setsAway !== null && matchData.setsAway !== undefined;
+        const scoresJustUpdated = !hadScores && hasNewScores;
+        
+        // Vérifier si les scores ont changé (même si le match était déjà FINISHED)
+        const scoresChanged = hadScores && hasNewScores && 
+                             (existingMatch.setsHome !== matchData.setsHome || existingMatch.setsAway !== matchData.setsAway);
         
         // Mettre à jour le match existant
         await prisma.match.update({
@@ -286,12 +306,20 @@ export class MatchesService {
           }
         });
         
-        // Si le match vient d'être terminé, calculer immédiatement les points
-        if (justFinished && matchData.setsHome !== undefined && matchData.setsAway !== undefined) {
+        // Calculer les points si :
+        // 1. Le match vient d'être terminé (justFinished)
+        // 2. Les scores viennent d'être mis à jour (scoresJustUpdated)
+        // 3. Les scores ont changé (scoresChanged)
+        // 4. Le match est terminé mais n'a pas encore de points calculés pour toutes les prédictions
+        const needsPointCalculation = isNowFinished && hasNewScores && 
+          (justFinished || scoresJustUpdated || scoresChanged || 
+           predictions.some(p => p.pointsAwarded === null));
+        
+        if (needsPointCalculation) {
           try {
             const predictionsService = new PredictionsService();
             await predictionsService.calculatePointsForMatch(existingMatch.id);
-            console.log(`✅ Points calculés immédiatement pour le match ${existingMatch.id}`);
+            console.log(`✅ Points calculés immédiatement pour le match ${existingMatch.id} (${existingMatch.homeTeam} vs ${existingMatch.awayTeam})`);
           } catch (error) {
             console.error(`❌ Erreur lors du calcul des points pour le match ${existingMatch.id}:`, error);
             // Ne pas faire échouer la synchronisation si le calcul des points échoue
