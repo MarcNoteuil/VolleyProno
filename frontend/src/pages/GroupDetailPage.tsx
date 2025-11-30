@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import MatchAllerModal from '../components/MatchAllerModal';
 
 interface SetScore {
   home: number;
@@ -90,6 +91,8 @@ export default function GroupDetailPage() {
   const [showTeamRankingModal, setShowTeamRankingModal] = useState(false);
   const [showPredictionsDetails, setShowPredictionsDetails] = useState<Record<string, boolean>>({});
   const [showFilters, setShowFilters] = useState(false);
+  const [showMatchAllerModal, setShowMatchAllerModal] = useState(false);
+  const [selectedMatchAller, setSelectedMatchAller] = useState<Match | null>(null);
 
   const copyToClipboard = async (code: string) => {
     try {
@@ -215,6 +218,33 @@ export default function GroupDetailPage() {
         return 'Annulé';
       default:
         return status;
+    }
+  };
+
+  // Fonction pour trouver le match aller correspondant (équipes inversées, date antérieure)
+  const findMatchAller = (currentMatch: Match): Match | null => {
+    return matches.find(m => {
+      // Équipes inversées : le homeTeam du match aller = awayTeam du match retour
+      // et le awayTeam du match aller = homeTeam du match retour
+      const teamsReversed = 
+        m.homeTeam === currentMatch.awayTeam && 
+        m.awayTeam === currentMatch.homeTeam;
+      
+      // Date antérieure au match actuel (match aller joué avant le match retour)
+      const isEarlier = new Date(m.startAt).getTime() < new Date(currentMatch.startAt).getTime();
+      
+      // Ne pas prendre le même match
+      const isDifferentMatch = m.id !== currentMatch.id;
+      
+      return teamsReversed && isEarlier && isDifferentMatch;
+    }) || null;
+  };
+
+  const handleShowMatchAller = (match: Match) => {
+    const matchAller = findMatchAller(match);
+    if (matchAller) {
+      setSelectedMatchAller(matchAller);
+      setShowMatchAllerModal(true);
     }
   };
 
@@ -858,7 +888,22 @@ export default function GroupDetailPage() {
                             </span>
                           </h3>
                         </div>
-                        <p className="text-gray-400 text-sm">{formatDate(match.startAt)}</p>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                          <p className="text-gray-400 text-sm">{formatDate(match.startAt)}</p>
+                          {findMatchAller(match) && (
+                            <button
+                              onClick={() => handleShowMatchAller(match)}
+                              className="text-orange-400 hover:text-orange-300 text-xs font-bold-sport transition-colors flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-orange-500/10 border border-orange-500/30 hover:border-orange-500/50"
+                              title="Voir le résultat du match aller"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              Voir le match aller
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div className="flex space-x-2">
                         <span className={`px-3 py-1.5 rounded-full text-xs font-bold-sport ${getStatusColor(match.status)} shadow-lg ${match.status === 'IN_PROGRESS' ? 'animate-pulse' : ''}`}>
@@ -1557,6 +1602,16 @@ export default function GroupDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Modale pour afficher le match aller */}
+      <MatchAllerModal
+        isOpen={showMatchAllerModal}
+        onClose={() => {
+          setShowMatchAllerModal(false);
+          setSelectedMatchAller(null);
+        }}
+        matchAller={selectedMatchAller}
+      />
     </div>
   );
 }

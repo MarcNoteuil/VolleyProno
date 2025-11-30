@@ -24,6 +24,8 @@ export class CronJobManager {
    */
   private startLockMatchesJob() {
     cron.schedule('0 * * * *', async () => {
+      // Utiliser setImmediate pour éviter de bloquer le processus
+      setImmediate(async () => {
       try {
         logger.info('Début du job de verrouillage et mise à jour du statut des matchs');
         
@@ -59,47 +61,94 @@ export class CronJobManager {
       } catch (error) {
         logger.error('Erreur lors du verrouillage des matchs:', error);
       }
+      });
+    }, {
+      scheduled: true,
+      timezone: 'Europe/Paris'
     });
   }
 
   /**
    * Job pour synchroniser les matchs FFVB
-   * Exécuté toutes les 15 minutes pour détecter rapidement les matchs terminés
+   * Exécuté toutes les 10 minutes pour détecter rapidement les matchs terminés
+   * Utilise setImmediate pour éviter de bloquer le processus
    */
   private startSyncFFVBJob() {
-    cron.schedule('*/15 * * * *', async () => {
-      try {
-        logger.info('Début de la synchronisation FFVB');
-        
-        const groups = await prisma.group.findMany({
-          where: {
-            ffvbSourceUrl: {
-              not: null
-            }
-          }
-        });
-
-        for (const group of groups) {
-          if (!group.ffvbSourceUrl) continue;
-
-          try {
-            logger.info(`Synchronisation du groupe ${group.name} (${group.id})`);
-            
-            const matches = await this.ffvbScraper.scrapeGroupMatches(group.ffvbSourceUrl);
-            
-            for (const matchData of matches) {
-              await this.syncMatch(group.id, matchData);
-            }
-            
-            logger.info(`${matches.length} matchs synchronisés pour le groupe ${group.name}`);
-          } catch (error) {
-            logger.error(`Erreur lors de la sync du groupe ${group.name}:`, error);
-          }
-        }
-      } catch (error) {
-        logger.error('Erreur lors de la synchronisation FFVB:', error);
-      }
+    // Synchronisation immédiate au démarrage
+    setImmediate(async () => {
+      await this.syncAllGroups();
     });
+
+    // Puis toutes les 10 minutes
+    cron.schedule('*/10 * * * *', async () => {
+      // Utiliser setImmediate pour éviter de bloquer le processus et causer des "missed execution"
+      setImmediate(async () => {
+        await this.syncAllGroups();
+      });
+    }, {
+      scheduled: true,
+      timezone: 'Europe/Paris'
+    });
+  }
+
+  /**
+   * Synchronise tous les groupes avec FFVB
+   */
+  private async syncAllGroups() {
+    try {
+      logger.info('🔄 Début de la synchronisation FFVB automatique');
+      
+      const groups = await prisma.group.findMany({
+        where: {
+          ffvbSourceUrl: {
+            not: null
+          },
+          deletedAt: null // Exclure les groupes supprimés
+        }
+      });
+
+      if (groups.length === 0) {
+        logger.info('Aucun groupe avec URL FFVB à synchroniser');
+        return;
+      }
+
+      logger.info(`${groups.length} groupe(s) à synchroniser`);
+
+      let totalMatches = 0;
+      let totalUpdated = 0;
+      let totalCreated = 0;
+
+      for (const group of groups) {
+        if (!group.ffvbSourceUrl) continue;
+
+        try {
+          logger.info(`📡 Synchronisation du groupe "${group.name}" (${group.id})`);
+          
+          const matches = await this.ffvbScraper.scrapeGroupMatches(group.ffvbSourceUrl);
+          totalMatches += matches.length;
+          
+          let created = 0;
+          let updated = 0;
+
+          for (const matchData of matches) {
+            const result = await this.syncMatch(group.id, matchData);
+            if (result === 'created') created++;
+            if (result === 'updated') updated++;
+          }
+          
+          totalCreated += created;
+          totalUpdated += updated;
+          
+          logger.info(`✅ Groupe "${group.name}": ${matches.length} match(s) trouvé(s), ${created} créé(s), ${updated} mis à jour`);
+        } catch (error) {
+          logger.error(`❌ Erreur lors de la sync du groupe "${group.name}":`, error);
+        }
+      }
+
+      logger.info(`✅ Synchronisation FFVB terminée: ${totalMatches} match(s) au total, ${totalCreated} créé(s), ${totalUpdated} mis à jour`);
+    } catch (error) {
+      logger.error('❌ Erreur lors de la synchronisation FFVB:', error);
+    }
   }
 
   /**
@@ -108,6 +157,8 @@ export class CronJobManager {
    */
   private startCalculatePointsJob() {
     cron.schedule('*/30 * * * *', async () => {
+      // Utiliser setImmediate pour éviter de bloquer le processus
+      setImmediate(async () => {
       try {
         logger.info('Début du calcul des points');
         
@@ -143,13 +194,18 @@ export class CronJobManager {
       } catch (error) {
         logger.error('Erreur lors du calcul des points:', error);
       }
+      });
+    }, {
+      scheduled: true,
+      timezone: 'Europe/Paris'
     });
   }
 
   /**
    * Synchronise un match avec les données FFVB
+   * @returns 'created' si nouveau match, 'updated' si match mis à jour, null sinon
    */
-  private async syncMatch(groupId: string, matchData: any) {
+  private async syncMatch(groupId: string, matchData: any): Promise<'created' | 'updated' | null> {
     const existingMatch = await prisma.match.findFirst({
       where: {
         groupId,
@@ -228,6 +284,8 @@ export class CronJobManager {
           // Ne pas faire échouer la synchronisation si le calcul des points échoue
         }
       }
+
+      return 'updated';
     } else {
       // Créer un nouveau match
       await prisma.match.create({
@@ -244,6 +302,7 @@ export class CronJobManager {
           scrapedAt: new Date()
         }
       });
+      return 'created';
     }
   }
 
