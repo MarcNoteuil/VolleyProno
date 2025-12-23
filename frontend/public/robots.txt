@@ -1,0 +1,11 @@
+# robots.txt pour VolleyProno
+User-agent: *
+Allow: /
+
+# Interdire l'indexation des pages d'administration
+Disallow: /admin
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://votredomaine.com/sitemap.xml
+

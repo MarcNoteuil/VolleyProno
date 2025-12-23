@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import Logo from './Logo';
+import InstallButton from './InstallButton';
 
 export default function Header() {
   const { logout, user, isAuthenticated } = useAuthStore();
@@ -105,6 +106,8 @@ export default function Header() {
 
             {/* Actions utilisateur Desktop */}
             <div className="hidden md:flex items-center space-x-3">
+              {/* Bouton d'installation PWA */}
+              <InstallButton />
               {isAuthenticated && user ? (
                 <>
                   <Link
@@ -133,7 +136,7 @@ export default function Header() {
                   </Link>
                   <button
                     onClick={logout}
-                    className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-bold-sport hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg shadow-red-500/30 hover:shadow-red-500/50"
+                    className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-bold-sport hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg shadow-red-500/30 hover:shadow-red-500/50 ml-3"
                   >
                     Déconnexion
                   </button>
@@ -278,12 +281,14 @@ export default function Header() {
 
           {/* Actions utilisateur Mobile */}
           <div className="p-4 border-t border-gray-700 space-y-2">
+            {/* Bouton d'installation PWA - Mobile */}
+            <InstallButton />
             {isAuthenticated && user ? (
               <>
                 <Link
                   to="/profil"
                   onClick={handleLinkClick}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg border transition-all duration-200 ${
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg border transition-all duration-200 ${
                     isActive('/profil')
                       ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/50'
                       : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
@@ -310,7 +315,7 @@ export default function Header() {
                     logout();
                     closeMobileMenu();
                   }}
-                  className="w-full px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-bold-sport hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg shadow-red-500/30"
+                  className="w-full mt-3 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg text-sm font-bold-sport hover:from-red-700 hover:to-red-800 transition-all duration-200 shadow-lg shadow-red-500/30"
                 >
                   Déconnexion
                 </button>

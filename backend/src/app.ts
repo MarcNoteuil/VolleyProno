@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import logger from './config/logger';
 
 // Import routes
 import authRoutes from './auth/auth.routes';
@@ -15,10 +16,68 @@ import usersRoutes from './users/users.routes';
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Configuration renforcée
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Désactivé pour permettre les images externes
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  }
+}));
+// Configuration CORS pour accepter localhost ET les IPs locales en développement
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? [process.env.FRONTEND_URL || 'http://localhost:5173']
+  : [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'http://localhost:5173',
+      /^http:\/\/192\.168\.\d+\.\d+:5173$/,  // IPs 192.168.x.x
+      /^http:\/\/10\.\d+\.\d+\.\d+:5173$/,   // IPs 10.x.x.x
+      /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:5173$/ // IPs 172.16-31.x.x
+    ];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // En production, refuser les requêtes sans origine (sécurité)
+    if (process.env.NODE_ENV === 'production' && !origin) {
+      return callback(new Error('CORS: Origin header required in production'));
+    }
+    
+    // En développement, autoriser les requêtes sans origine (Postman, etc.)
+    if (!origin && process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // Vérifier si l'origine est autorisée
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (typeof allowed === 'string') {
+        return origin === allowed;
+      }
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 
@@ -92,32 +151,35 @@ app.use('/api/ranking', rankingRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', usersRoutes);
 
-// Route de test pour le scraper FFVB (sans authentification)
-app.post('/api/test-scraper', (req, res) => {
-  const { url } = req.body;
-  if (!url) {
-    return res.status(400).json({ error: 'URL manquante' });
-  }
-  
-  const { FFVBScraper } = require('./utils/ffvbScraper');
-  const scraper = new FFVBScraper();
-  
-  scraper.scrapeGroupMatches(url)
-    .then(matches => {
-      res.json({
-        success: true,
-        matches: matches,
-        count: matches.length
+// Route de test pour le scraper FFVB (UNIQUEMENT en développement)
+// DÉSACTIVÉE en production pour des raisons de sécurité
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/test-scraper', (req, res) => {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ error: 'URL manquante' });
+    }
+    
+    const { FFVBScraper } = require('./utils/ffvbScraper');
+    const scraper = new FFVBScraper();
+    
+    scraper.scrapeGroupMatches(url)
+      .then(matches => {
+        res.json({
+          success: true,
+          matches: matches,
+          count: matches.length
+        });
+      })
+      .catch(error => {
+        logger.error('Erreur test scraper:', error);
+        res.status(500).json({
+          success: false,
+          error: process.env.NODE_ENV === 'production' ? 'Erreur interne' : error.message
+        });
       });
-    })
-    .catch(error => {
-      console.error('Erreur test scraper:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    });
-});
+  });
+}
 
 // 404 handler
 app.use((_req, res) => {
@@ -129,10 +191,16 @@ app.use((_req, res) => {
 
 // Error handler
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err);
-  res.status(500).json({
+  // Logger l'erreur complète pour le debugging
+  logger.error('Erreur non gérée:', err);
+  
+  // En production, ne pas exposer les détails de l'erreur
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  res.status(err.status || 500).json({
     code: 'INTERNAL_ERROR',
-    message: 'Erreur interne du serveur'
+    message: isProduction ? 'Erreur interne du serveur' : err.message || 'Erreur interne du serveur',
+    ...(isProduction ? {} : { stack: err.stack }) // Stack trace uniquement en développement
   });
 });
 

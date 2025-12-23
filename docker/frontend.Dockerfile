@@ -11,6 +11,11 @@ COPY frontend/postcss.config.js ./
 COPY frontend/tailwind.config.ts ./
 COPY frontend/src ./src
 COPY frontend/public ./public
+# Copier les fichiers .env pour que Vite les utilise lors du build
+COPY frontend/.env* ./
+# ARG pour permettre de passer VITE_API_URL depuis docker-compose
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
 RUN npm run build
 
 # ---- Runtime stage ----

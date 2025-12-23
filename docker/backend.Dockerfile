@@ -1,12 +1,10 @@
 # ---- Runtime stage ----
 FROM node:20-slim AS runner
 WORKDIR /app
+# Les variables d'environnement doivent être passées via docker-compose ou .env
+# Ne JAMAIS hardcoder de secrets ici
 ENV NODE_ENV=production
-ENV DATABASE_URL="mysql://volleyprono:volleyprono@mysql:3306/volleyprono"
-ENV JWT_SECRET="votre-secret-jwt-super-securise-changez-moi"
-ENV JWT_REFRESH_SECRET="votre-refresh-secret-jwt-super-securise-changez-moi"
 ENV PORT=4000
-ENV FRONTEND_URL=http://localhost:5173
 ENV FFVB_BASE_URL=https://www.ffvb.org
 # L'image Puppeteer a déjà toutes les dépendances système nécessaires
 
